@@ -664,9 +664,6 @@ function selectSwap(index){
 }
 
 
-// Swap করলে পরপর দুইদিন একই ব্যক্তি হবে কিনা চেক
-const p1 = dutyData[firstIndex].duty;
-const p2 = dutyData[secondIndex].duty;
 
 // firstIndex এ p2 বসবে
 if (
@@ -686,36 +683,38 @@ if (
     return;
 }
 
-function performSwap(firstIndex,secondIndex){
+function performSwap(firstIndex, secondIndex){
 
-    const temp=dutyData[firstIndex].duty;
+    const p1 = dutyData[firstIndex].duty;
+    const p2 = dutyData[secondIndex].duty;
 
-    dutyData[firstIndex].duty=dutyData[secondIndex].duty;
-
-    dutyData[secondIndex].duty=temp;
-
-    localStorage.setItem(
-        "dutyData",
-        JSON.stringify(dutyData)
-    );
-
-    generateCalendar();
-
-}
-function resetAllSwaps(){
-
-    if(!confirm("সব Swap মুছে ফেলবেন?")){
+    // firstIndex এ p2 বসবে
+    if (
+        (firstIndex > 0 && dutyData[firstIndex-1].duty === p2) ||
+        (firstIndex < dutyData.length-1 && dutyData[firstIndex+1].duty === p2)
+    ){
+        alert("এই Swap করলে পরপর দুইদিন একই ব্যক্তির ডিউটি হবে।");
         return;
     }
 
-    localStorage.removeItem("dutyData");
+    // secondIndex এ p1 বসবে
+    if (
+        (secondIndex > 0 && dutyData[secondIndex-1].duty === p1) ||
+        (secondIndex < dutyData.length-1 && dutyData[secondIndex+1].duty === p1)
+    ){
+        alert("এই Swap করলে পরপর দুইদিন একই ব্যক্তির ডিউটি হবে।");
+        return;
+    }
 
-    buildDutyData();
+    // Swap
+    const temp = dutyData[firstIndex].duty;
+    dutyData[firstIndex].duty = dutyData[secondIndex].duty;
+    dutyData[secondIndex].duty = temp;
+
+    localStorage.setItem("dutyData", JSON.stringify(dutyData));
 
     generateCalendar();
-
 }
-
 
 /* ===========================
    Start Calendar
