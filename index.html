@@ -1,0 +1,33 @@
+<!DOCTYPE html><html lang="bn"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Duty Roster</title>
+<style>
+body{font-family:Arial,sans-serif;max-width:800px;margin:auto;padding:20px}
+table{border-collapse:collapse;width:100%}td,th{border:1px solid #ccc;padding:6px;text-align:center}
+input,button{padding:6px;margin:4px}
+</style></head><body>
+<h2>৩ জনের ডিউটি রোস্টার</h2>
+<label>শুরুর তারিখ <input type="date" id="start"></label>
+<button onclick="gen()">Generate</button>
+<div id="out"></div>
+<script>
+const names=["হাসান","নেওয়াজ","শফিক"];
+let swaps=JSON.parse(localStorage.getItem("swaps")||"{}");
+function fmt(d){return d.toISOString().slice(0,10)}
+function gen(){
+ let s=new Date(document.getElementById('start').value); if(isNaN(s))return alert("তারিখ দিন");
+ let h="<table><tr><th>তারিখ</th><th>ডিউটি</th><th>Swap</th></tr>";
+ for(let i=0;i<31;i++){
+   let d=new Date(s); d.setDate(s.getDate()+i);
+   let k=fmt(d);
+   let name=swaps[k]||names[i%3];
+   h+=`<tr><td>${k}</td><td>${name}</td><td><select onchange="saveSwap('${k}',this.value)">
+   <option value="">--</option>${names.map(n=>`<option ${n==name?"selected":""}>${n}</option>`).join("")}</select></td></tr>`;
+ }
+ h+="</table>";
+ document.getElementById("out").innerHTML=h;
+}
+function saveSwap(k,v){
+ if(v)swaps[k]=v; else delete swaps[k];
+ localStorage.setItem("swaps",JSON.stringify(swaps));
+}
+</script></body></html>
