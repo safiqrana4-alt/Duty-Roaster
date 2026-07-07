@@ -12,92 +12,50 @@
 <body>
 <div class="container">
   <header>
-    <h1>📅 Duty Roster 2026</h1>
+    <h1>Duty Roster 2026</h1>
     <p>বাংলাদেশ অফিস ডিউটি ম্যানেজমেন্ট সিস্টেম</p>
   </header>
 
-  <section class="login-box">
-    <h3>User Login</h3>
-    <div class="login-row">
-      <input id="loginUser" type="text" placeholder="Username">
-      <input id="loginPass" type="password" placeholder="Password">
-      <button onclick="loginUser()">Login</button>
-      <button class="secondary-btn" onclick="logoutUser()">Logout</button>
-    </div>
-    <p id="loginStatus" class="login-status">Not logged in</p>
+  <section class="login-box" id="loginBox">
+    <h3>Login</h3>
+    <input id="mobileInput" type="text" placeholder="Mobile Number">
+    <input id="passwordInput" type="password" placeholder="Password">
+    <button onclick="loginUser()">Login</button>
+    <div id="loginMsg" class="login-msg"></div>
   </section>
 
-  <section class="otp-box">
-    <h3>OTP Verification</h3>
-    <div class="login-row">
-      <input id="mobileNumber" type="text" placeholder="Mobile number">
-      <button onclick="sendOtp()">Send OTP</button>
-      <input id="otpInput" type="text" placeholder="Enter OTP">
-      <button onclick="verifyOtp()">Verify OTP</button>
-    </div>
-    <p id="otpStatus" class="login-status">OTP not verified</p>
+  <section class="user-info" id="userInfo" style="display:none;">
+    <div><strong>Logged in as:</strong> <span id="currentUserName"></span></div>
+    <button class="logout-btn" onclick="logoutUser()">Logout</button>
   </section>
 
-  <section class="admin-box">
-    <h3>Admin Login</h3>
-    <div class="login-row">
-      <input id="adminUser" type="text" placeholder="Admin user">
-      <input id="adminPass" type="password" placeholder="Admin password">
-      <button onclick="adminLogin()">Admin Login</button>
-      <button class="secondary-btn" onclick="adminLogout()">Logout</button>
-    </div>
-    <p id="adminStatus" class="login-status">Admin not logged in</p>
-  </section>
-
-  <section class="admin-box">
-    <h3>Admin Controls</h3>
-    <div class="login-row">
-      <select id="targetUser">
-        <option value="হাসান">হাসান</option>
-        <option value="নেওয়াজ">নেওয়াজ</option>
-        <option value="শফিক">শফিক</option>
-      </select>
-      <input id="newUsername" type="text" placeholder="New username">
-      <input id="newPassword" type="password" placeholder="New password">
-      <button onclick="setUserPassword()">Set Credentials</button>
-    </div>
-    <p id="adminActionStatus" class="login-status">No admin action yet</p>
-  </section>
-
-  <section class="approval-box">
-    <h3>Access Approval</h3>
-    <p>Swap করতে হলে user login + OTP verification + admin final approval প্রয়োজন।</p>
-    <ul>
-      <li>১. প্রথম দিন নির্বাচন করুন</li>
-      <li>২. দ্বিতীয় দিন নির্বাচন করুন</li>
-      <li>৩. সংশ্লিষ্ট user OTP verify করবে</li>
-      <li>৪. তারপর admin approve করলে swap হবে</li>
-    </ul>
-  </section>
-
-  <section class="dashboard">
-    <div class="card">
-      <h2>👤 হাসান</h2>
-      <p>মোট ডিউটি <span id="hasanTotal">0</span></p>
-      <p>শুক্রবার <span id="hasanFriday">0</span></p>
-      <p>সরকারি ছুটি <span id="hasanHoliday">0</span></p>
-    </div>
-    <div class="card">
-      <h2>👤 নেওয়াজ</h2>
-      <p>মোট ডিউটি <span id="newazTotal">0</span></p>
-      <p>শুক্রবার <span id="newazFriday">0</span></p>
-      <p>সরকারি ছুটি <span id="newazHoliday">0</span></p>
-    </div>
-    <div class="card">
-      <h2>👤 শফিক</h2>
-      <p>মোট ডিউটি <span id="shafiqTotal">0</span></p>
-      <p>শুক্রবার <span id="shafiqFriday">0</span></p>
-      <p>সরকারি ছুটি <span id="shafiqHoliday">0</span></p>
-    </div>
+  <section class="policy-banner">
+    Login করার পর শুধু নিজের account দিয়ে swap request approve/reject করতে পারবে।
   </section>
 
   <section class="tools">
     <input id="searchInput" type="text" placeholder="Search date / duty name..." onkeyup="filterTable()">
+  </section>
+
+  <section class="dashboard">
+    <div class="card">
+      <h2>হাসান</h2>
+      <p><span>মোট</span><span id="hasanTotal">0</span></p>
+      <p><span>শুক্রবার</span><span id="hasanFriday">0</span></p>
+      <p><span>ছুটি</span><span id="hasanHoliday">0</span></p>
+    </div>
+    <div class="card">
+      <h2>নেওয়াজ</h2>
+      <p><span>মোট</span><span id="newazTotal">0</span></p>
+      <p><span>শুক্রবার</span><span id="newazFriday">0</span></p>
+      <p><span>ছুটি</span><span id="newazHoliday">0</span></p>
+    </div>
+    <div class="card">
+      <h2>শফিক</h2>
+      <p><span>মোট</span><span id="shafiqTotal">0</span></p>
+      <p><span>শুক্রবার</span><span id="shafiqFriday">0</span></p>
+      <p><span>ছুটি</span><span id="shafiqHoliday">0</span></p>
+    </div>
   </section>
 
   <section class="queue-box">
@@ -118,14 +76,14 @@
           <th>বার</th>
           <th>ডিউটি</th>
           <th>স্ট্যাটাস</th>
-          <th>Smart Swap</th>
+          <th>Swap</th>
         </tr>
       </thead>
       <tbody id="tableBody"></tbody>
     </table>
   </section>
 
-  <div class="footer">Duty Roster 2026 © GitHub Pages Ready</div>
+  <div class="footer">Duty Roster 2026</div>
 </div>
 
 <script src="script.js"></script>
