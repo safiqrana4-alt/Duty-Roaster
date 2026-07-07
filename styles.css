@@ -1,34 +1,62 @@
 :root {
-  --bg: #f4f7fb;
+  --bg: #f6f8fc;
   --card: #ffffff;
-  --text: #1f2937;
-  --muted: #6b7280;
-  --border: #e5e7eb;
+  --text: #0f172a;
+  --muted: #64748b;
+  --border: #e5eaf2;
+  --primary: #2563eb;
+  --success: #16a34a;
+  --warning: #d97706;
+  --danger: #dc2626;
+  --shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+  --shadow-soft: 0 6px 18px rgba(15, 23, 42, 0.05);
   --topbar: linear-gradient(135deg, #2563eb, #1d4ed8);
 }
 
 html[data-theme="dark"] {
-  --bg: #0f172a;
+  --bg: #0b1220;
   --card: #111827;
   --text: #e5e7eb;
   --muted: #94a3b8;
   --border: #243244;
+  --shadow: 0 10px 30px rgba(0, 0, 0, 0.28);
+  --shadow-soft: 0 6px 18px rgba(0, 0, 0, 0.18);
   --topbar: linear-gradient(135deg, #0f172a, #1e293b);
 }
 
 body {
+  margin: 0;
   background: var(--bg) !important;
   color: var(--text) !important;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  font-family: Inter, Arial, sans-serif;
+}
+
+.container {
+  max-width: 1280px;
 }
 
 .app-header {
   background: var(--topbar);
   color: #fff;
-  padding: 20px;
-  border-radius: 14px;
+  padding: 20px 16px;
+  border-radius: 18px;
   text-align: center;
-  box-shadow: 0 10px 30px rgba(0,0,0,.12);
+  box-shadow: var(--shadow);
   margin-bottom: 16px;
+}
+
+.app-header h1 {
+  margin: 0;
+  font-size: clamp(1.3rem, 3vw, 1.8rem);
+  font-weight: 800;
+}
+
+.app-header p {
+  margin: 6px 0 0;
+  color: rgba(255, 255, 255, 0.88);
+  font-size: 0.95rem;
 }
 
 .top-tabs {
@@ -40,59 +68,65 @@ body {
 
 .tab-btn {
   padding: 10px 16px;
-  border: none;
-  border-radius: 10px;
-  background: #e5e7eb;
-  color: #111827;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--card);
+  color: var(--text);
   font-weight: 700;
+  box-shadow: var(--shadow-soft);
 }
 
 .tab-btn.active {
-  background: #2563eb;
+  background: var(--primary);
   color: #fff;
+  border-color: var(--primary);
 }
 
-.d-none { display: none !important; }
+.d-none {
+  display: none !important;
+}
 
 .dashboard-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 16px;
+  gap: 14px;
   margin-bottom: 16px;
 }
 
-.stat-card, .app-card {
+.stat-card,
+.app-card {
   background: var(--card) !important;
   border: 1px solid var(--border) !important;
-  box-shadow: 0 10px 30px rgba(15, 23, 42, .06);
+  box-shadow: var(--shadow-soft);
   border-radius: 18px !important;
 }
 
 .stat-card {
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 18px;
+  gap: 12px;
+  padding: 16px;
 }
 
 .stat-icon {
-  width: 52px;
-  height: 52px;
-  border-radius: 16px;
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
   display: grid;
   place-items: center;
   color: #fff;
-  font-size: 22px;
+  font-size: 20px;
   flex: 0 0 auto;
 }
 
 .stat-label {
   color: var(--muted);
-  font-size: 14px;
+  font-size: 13px;
+  margin-bottom: 2px;
 }
 
 .stat-value {
-  font-size: 26px;
+  font-size: 24px;
   font-weight: 800;
   line-height: 1.1;
 }
@@ -101,39 +135,72 @@ body {
   background: transparent !important;
   border-bottom: 1px solid var(--border) !important;
   color: var(--text) !important;
+  padding: 14px 16px;
+}
+
+.app-card .card-body {
+  padding: 16px;
+}
+
+.table-box {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  overflow: hidden;
+  box-shadow: var(--shadow-soft);
 }
 
 .table {
+  margin-bottom: 0 !important;
   color: var(--text) !important;
 }
 
 .table thead th {
-  background: rgba(37,99,235,.08) !important;
+  background: rgba(37, 99, 235, 0.06) !important;
   color: var(--text) !important;
   border-color: var(--border) !important;
+  font-weight: 700;
+  white-space: nowrap;
 }
 
-.table td, .table th {
+.table td,
+.table th {
   border-color: var(--border) !important;
   vertical-align: middle;
 }
 
-.form-control, .form-select {
+.form-control,
+.form-select {
   background-color: var(--card) !important;
   color: var(--text) !important;
   border-color: var(--border) !important;
+  border-radius: 12px;
+  min-height: 44px;
 }
 
 .form-control::placeholder {
   color: var(--muted);
 }
 
-.selected-row {
-  background: #fef08a !important;
+.form-control:focus,
+.form-select:focus {
+  border-color: var(--primary) !important;
+  box-shadow: 0 0 0 0.2rem rgba(37, 99, 235, 0.12) !important;
 }
 
-.amount-positive { color: #16a34a; font-weight: 700; }
-.amount-negative { color: #dc2626; font-weight: 700; }
+.selected-row {
+  background: #fef3c7 !important;
+}
+
+.amount-positive {
+  color: var(--success);
+  font-weight: 700;
+}
+
+.amount-negative {
+  color: var(--danger);
+  font-weight: 700;
+}
 
 .footer {
   margin-top: 25px;
@@ -142,11 +209,94 @@ body {
   color: var(--muted);
 }
 
+.badge-normal {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+.badge-friday {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.badge-holiday {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.btn {
+  border-radius: 12px;
+}
+
+.btn-outline-primary,
+.btn-outline-secondary,
+.btn-outline-danger,
+.btn-primary,
+.btn-success {
+  min-height: 42px;
+}
+
+.toast {
+  border-radius: 12px;
+  box-shadow: var(--shadow-soft);
+}
+
 @media (max-width: 992px) {
-  .dashboard-grid { grid-template-columns: repeat(2, 1fr); }
+  .dashboard-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
 @media (max-width: 576px) {
-  .dashboard-grid { grid-template-columns: 1fr; }
-  .stat-value { font-size: 22px; }
+  .container {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .app-header {
+    padding: 16px 14px;
+    border-radius: 16px;
+  }
+
+  .app-header p {
+    font-size: 0.9rem;
+  }
+
+  .stat-value {
+    font-size: 21px;
+  }
+
+  .top-tabs {
+    gap: 8px;
+  }
+
+  .tab-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .table-box,
+  .app-card {
+    border-radius: 14px;
+  }
+
+  .app-card .card-body {
+    padding: 14px;
+  }
+
+  .table-responsive {
+    overflow-x: auto;
+  }
+
+  .card-header h5 {
+    font-size: 1rem;
+  }
+
+  .d-flex.gap-2.flex-wrap .btn {
+    flex: 1 1 100%;
+  }
 }
