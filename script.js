@@ -30,25 +30,15 @@ function formatDate(date) {
   return `${y}-${m}-${d}`;
 }
 
-function todayISO() {
-  return new Date().toISOString().slice(0, 10);
-}
-
-function isHoliday(dateStr) {
-  return holidays.includes(dateStr);
-}
+function todayISO() { return new Date().toISOString().slice(0, 10); }
+function isHoliday(dateStr) { return holidays.includes(dateStr); }
 
 function showToast(message, type = "primary") {
   const wrap = document.getElementById("toastContainer");
   if (!wrap) return;
   const el = document.createElement("div");
   el.className = `toast align-items-center text-bg-${type} border-0`;
-  el.innerHTML = `
-    <div class="d-flex">
-      <div class="toast-body">${message}</div>
-      <button type="button" class="btn-close btn-close-white me-2 m-auto" onclick="this.closest('.toast').remove()"></button>
-    </div>
-  `;
+  el.innerHTML = `<div class="d-flex"><div class="toast-body">${message}</div><button type="button" class="btn-close btn-close-white me-2 m-auto" onclick="this.closest('.toast').remove()"></button></div>`;
   wrap.appendChild(el);
   const toast = new bootstrap.Toast(el, { delay: 1800 });
   toast.show();
@@ -112,17 +102,6 @@ function updateDutySummary() {
   set("swapCount", selectedSwap === null ? 0 : 1);
 }
 
-function openDutyNote(index) {
-  const current = dutyNotes[dutyData[index].date] || "";
-  const note = prompt("নোট লিখুন", current);
-  if (note === null) return;
-  if (note.trim()) dutyNotes[dutyData[index].date] = note.trim();
-  else delete dutyNotes[dutyData[index].date];
-  saveDutyNotes();
-  selectedNoteIndex = index;
-  generateCalendar();
-}
-
 function generateCalendar() {
   trimPastDutyData();
   const tbody = document.getElementById("tableBody");
@@ -131,33 +110,13 @@ function generateCalendar() {
   dutyData.forEach((item, index) => {
     const row = document.createElement("tr");
     const d = new Date(item.date);
-    const dayIndex = d.getDay();
-    const dayName = days[dayIndex];
-    const friday = dayIndex === 5;
-    const holiday = isHoliday(item.date);
-
-    if (selectedSwap === index) row.classList.add("selected-row");
-
-    let status = '<span class="badge badge-normal">Normal</span>';
-    if (friday) status = '<span class="badge badge-friday">Friday</span>';
-    if (holiday) status = '<span class="badge badge-holiday">Holiday</span>';
-
-    const noteText = dutyNotes[item.date] ? `<div class="small text-muted mt-1">${dutyNotes[item.date]}</div>` : "";
+    const dayName = days[d.getDay()];
     row.innerHTML = `
       <td>${item.date}</td>
       <td>${dayName}</td>
       <td>${item.duty}</td>
-      <td>${status}</td>
-      <td>
-        <a href="javascript:void(0)" class="text-decoration-none fw-semibold me-2" onclick="selectSwap(${index})">Swap</a>
-        <a href="javascript:void(0)" class="text-decoration-none fw-semibold" onclick="openDutyNote(${index})">Note</a>
-        ${noteText}
-      </td>
+      <td><a href="javascript:void(0)" class="text-decoration-none fw-semibold" onclick="selectSwap(${index})">Swap</a></td>
     `;
-
-    if (holiday) row.style.background = "rgba(220, 38, 38, 0.10)";
-    else if (friday) row.style.background = "rgba(37, 99, 235, 0.10)";
-
     tbody.appendChild(row);
   });
   updateDutySummary();
@@ -205,12 +164,7 @@ function getSettlementReceived(name) { return settlements.filter(s => s.to === n
 
 function getBalances() {
   const share = getShare();
-  return members.map(name => ({
-    name,
-    received: getReceived(name),
-    share,
-    balance: getReceived(name) - share - getSettlementPaid(name) + getSettlementReceived(name)
-  }));
+  return members.map(name => ({ name, received: getReceived(name), share, balance: getReceived(name) - share - getSettlementPaid(name) + getSettlementReceived(name) }));
 }
 
 function getBaseSettlement() {
@@ -250,8 +204,6 @@ function populateMemberSelects() {
     if (!el) return;
     el.innerHTML = `<option value="">আপনার নাম</option>` + members.map(name => `<option value="${name}">${name}</option>`).join("");
   });
-  const totalMembersCard = document.getElementById("totalMembersCard");
-  if (totalMembersCard) totalMembersCard.textContent = members.length;
 }
 
 function saveDeposit() {
@@ -267,9 +219,7 @@ function saveDeposit() {
   showToast("জমা saved", "success");
 }
 
-function resetDepositForm() {
-  document.getElementById("depositForm")?.reset();
-}
+function resetDepositForm() { document.getElementById("depositForm")?.reset(); }
 
 function saveSettlement() {
   const from = document.getElementById("settlementFrom")?.value || "";
@@ -285,40 +235,30 @@ function saveSettlement() {
   showToast("পরিশোধ saved", "success");
 }
 
-function resetSettlementForm() {
-  document.getElementById("settlementForm")?.reset();
-}
-
-function clearAllDeposits() {
-  if (!confirm("সব deposit মুছতে চান?")) return;
-  deposits = [];
-  saveDeposits();
-  renderMoneyPage();
-  renderAll();
-}
-
-function clearAllSettlements() {
-  if (!confirm("সব পরিশোধ মুছতে চান?")) return;
-  settlements = [];
-  saveSettlements();
-  renderMoneyPage();
-  renderAll();
-}
+function resetSettlementForm() { document.getElementById("settlementForm")?.reset(); }
+function clearAllDeposits() { if (!confirm("সব deposit মুছতে চান?")) return; deposits = []; saveDeposits(); renderMoneyPage(); renderAll(); }
+function clearAllSettlements() { if (!confirm("সব পরিশোধ মুছতে চান?")) return; settlements = []; saveSettlements(); renderMoneyPage(); renderAll(); }
 
 function deleteDeposit(id) {
   if (!confirm("এই deposit delete করবেন?")) return;
+  const typed = prompt("Delete করতে DELETE লিখুন");
+  if (typed !== "DELETE") return showToast("Delete cancelled", "warning");
   deposits = deposits.filter(d => d.id !== id);
   saveDeposits();
   renderMoneyPage();
   renderAll();
+  showToast("Deposit deleted", "success");
 }
 
 function deleteSettlement(id) {
   if (!confirm("এই পরিশোধ delete করবেন?")) return;
+  const typed = prompt("Delete করতে DELETE লিখুন");
+  if (typed !== "DELETE") return showToast("Delete cancelled", "warning");
   settlements = settlements.filter(s => s.id !== id);
   saveSettlements();
   renderMoneyPage();
   renderAll();
+  showToast("Settlement deleted", "success");
 }
 
 function editDeposit(id) {
@@ -328,12 +268,8 @@ function editDeposit(id) {
   const member = prompt("জমা পেল", row.member);
   const amount = prompt("Amount", row.amount);
   if (!date || !member || !amount) return;
-  row.date = date;
-  row.member = member;
-  row.amount = Number(amount);
-  saveDeposits();
-  renderMoneyPage();
-  renderAll();
+  row.date = date; row.member = member; row.amount = Number(amount);
+  saveDeposits(); renderMoneyPage(); renderAll();
 }
 
 function editSettlement(id) {
@@ -344,18 +280,11 @@ function editSettlement(id) {
   const to = prompt("পেলাম", row.to);
   const amount = prompt("Amount", row.amount);
   if (!date || !from || !to || !amount) return;
-  row.date = date;
-  row.from = from;
-  row.to = to;
-  row.amount = Number(amount);
-  saveSettlements();
-  renderMoneyPage();
-  renderAll();
+  row.date = date; row.from = from; row.to = to; row.amount = Number(amount);
+  saveSettlements(); renderMoneyPage(); renderAll();
 }
 
-function renderDutyPage() {
-  generateCalendar();
-}
+function renderDutyPage() { generateCalendar(); }
 
 function renderMoneyPage() {
   populateMemberSelects();
@@ -370,9 +299,7 @@ function renderMoneyPage() {
 
   const calcBody = document.getElementById("settlementCalcBody");
   if (calcBody) {
-    calcBody.innerHTML = remaining.length
-      ? remaining.map(x => `<tr><td>${x.from}</td><td>${x.to}</td><td>৳ ${money(x.amount)}</td></tr>`).join("")
-      : `<tr><td colspan="3" class="text-center">No Remaining Settlement</td></tr>`;
+    calcBody.innerHTML = remaining.length ? remaining.map(x => `<tr><td>${x.from}</td><td>${x.to}</td><td>৳ ${money(x.amount)}</td></tr>`).join("") : `<tr><td colspan="3" class="text-center">No Remaining Settlement</td></tr>`;
   }
 
   const noRemaining = document.getElementById("noRemainingBox");
@@ -384,51 +311,29 @@ function renderMoneyPage() {
     const history = [
       ...deposits.map(x => ({ id: x.id, type: "জমা", date: x.date, name: x.member, mode: "পেল", amount: x.amount, action: "deposit" })),
       ...settlements.map(x => ({ id: x.id, type: "পরিশোধ", date: x.date, name: `${x.from} → ${x.to}`, mode: "দিল", amount: x.amount, action: "settlement" }))
-    ]
-      .filter(x => !q || `${x.date} ${x.type} ${x.name} ${x.mode} ${x.amount}`.toLowerCase().includes(q))
-      .sort((a, b) => b.date.localeCompare(a.date));
-
-    histBody.innerHTML = history.length
-      ? history.map(r => `
-        <tr>
-          <td>${r.date}</td>
-          <td>${r.type}</td>
-          <td>${r.name}</td>
-          <td>${r.mode}</td>
-          <td>৳ ${money(r.amount)}</td>
-          <td>
-            <button class="btn btn-sm btn-outline-primary" onclick="${r.action === "deposit" ? `editDeposit('${r.id}')` : `editSettlement('${r.id}')`}">Edit</button>
-            <button class="btn btn-sm btn-outline-danger" onclick="${r.action === "deposit" ? `deleteDeposit('${r.id}')` : `deleteSettlement('${r.id}')`}">Delete</button>
-          </td>
-        </tr>
-      `).join("")
-      : `<tr><td colspan="6" class="text-center text-muted">No history found</td></tr>`;
+    ].filter(x => !q || `${x.date} ${x.type} ${x.name} ${x.mode} ${x.amount}`.toLowerCase().includes(q)).sort((a, b) => b.date.localeCompare(a.date));
+    histBody.innerHTML = history.length ? history.map(r => `
+      <tr>
+        <td>${r.date}</td>
+        <td>${r.type}</td>
+        <td>${r.name}</td>
+        <td>${r.mode}</td>
+        <td>৳ ${money(r.amount)}</td>
+        <td>
+          <button class="btn btn-sm btn-outline-primary" onclick="${r.action === "deposit" ? `editDeposit('${r.id}')` : `editSettlement('${r.id}')`}">Edit</button>
+          <button class="btn btn-sm btn-outline-danger" onclick="${r.action === "deposit" ? `deleteDeposit('${r.id}')` : `deleteSettlement('${r.id}')`}">Delete</button>
+        </td>
+      </tr>
+    `).join("") : `<tr><td colspan="6" class="text-center text-muted">No history found</td></tr>`;
   }
 
   const calcHint = document.getElementById("calcHint");
   if (calcHint) calcHint.textContent = `Auto calculation based on ${members.length} members`;
 }
 
-function renderAll() {
-  renderDutyPage();
-  renderMoneyPage();
-}
-
-function showDutyTab() {
-  document.getElementById("dutyPage").classList.remove("d-none");
-  document.getElementById("moneyPage").classList.add("d-none");
-  document.getElementById("dutyTabBtn").classList.add("active");
-  document.getElementById("moneyTabBtn").classList.remove("active");
-  renderDutyPage();
-}
-
-function showMoneyTab() {
-  document.getElementById("dutyPage").classList.add("d-none");
-  document.getElementById("moneyPage").classList.remove("d-none");
-  document.getElementById("dutyTabBtn").classList.remove("active");
-  document.getElementById("moneyTabBtn").classList.add("active");
-  renderMoneyPage();
-}
+function renderAll() { renderDutyPage(); renderMoneyPage(); }
+function showDutyTab() { document.getElementById("dutyPage").classList.remove("d-none"); document.getElementById("moneyPage").classList.add("d-none"); document.getElementById("dutyTabBtn").classList.add("active"); document.getElementById("moneyTabBtn").classList.remove("active"); renderDutyPage(); }
+function showMoneyTab() { document.getElementById("dutyPage").classList.add("d-none"); document.getElementById("moneyPage").classList.remove("d-none"); document.getElementById("dutyTabBtn").classList.remove("active"); document.getElementById("moneyTabBtn").classList.add("active"); renderMoneyPage(); }
 
 function openMemberModal() { memberModal?.show(); }
 function closeMemberModal() { memberModal?.hide(); }
@@ -478,11 +383,7 @@ function importJSON(event) {
       settlements = data.settlements || [];
       dutyData = data.dutyData || dutyData;
       dutyNotes = data.dutyNotes || {};
-      saveMembers();
-      saveDeposits();
-      saveSettlements();
-      saveDutyData();
-      saveDutyNotes();
+      saveMembers(); saveDeposits(); saveSettlements(); saveDutyData(); saveDutyNotes();
       renderAll();
       showToast("JSON imported", "success");
     } catch {
@@ -494,13 +395,7 @@ function importJSON(event) {
 
 async function copyReport() {
   const remaining = applySettlementAdjustments(getBaseSettlement());
-  const text = [
-    `Total Deposit: ${getTotalDeposit()}`,
-    `Per Person Share: ${getShare()}`,
-    `Members: ${members.length}`,
-    `Remaining Settlement:`,
-    ...remaining.map(x => `${x.from} -> ${x.to}: ${x.amount}`)
-  ].join("\n");
+  const text = [`Total Deposit: ${getTotalDeposit()}`, `Per Person Share: ${getShare()}`, `Members: ${members.length}`, `Remaining Settlement:`, ...remaining.map(x => `${x.from} -> ${x.to}: ${x.amount}`)].join("\n");
   await navigator.clipboard.writeText(text);
   showToast("Report copied", "success");
 }
@@ -517,18 +412,12 @@ function deleteAllData() {
   settlements = [];
   dutyNotes = {};
   buildDutyData();
-  saveMembers();
-  saveDeposits();
-  saveSettlements();
-  saveDutyData();
-  saveDutyNotes();
+  saveMembers(); saveDeposits(); saveSettlements(); saveDutyData(); saveDutyNotes();
   renderAll();
   showToast("All data deleted", "warning");
 }
 
-function money(n) {
-  return new Intl.NumberFormat("en-US").format(Number(n || 0));
-}
+function money(n) { return new Intl.NumberFormat("en-US").format(Number(n || 0)); }
 
 function applyTheme() {
   const theme = localStorage.getItem(STORAGE_KEYS.theme) || "light";
