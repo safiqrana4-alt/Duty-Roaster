@@ -65,6 +65,7 @@ function loadDutyData() {
   const saved = localStorage.getItem(STORAGE_KEYS.dutyData);
   if (saved) dutyData = JSON.parse(saved);
   else buildDutyData();
+  trimPastDutyData();
 }
 
 function buildDutyData() {
@@ -75,6 +76,21 @@ function buildDutyData() {
   for (let d = new Date(start); d <= new Date(start.getFullYear(), start.getMonth(), start.getDate() + 29); d.setDate(d.getDate() + 1)) {
     dutyData.push({ date: formatDate(d), duty: staff[i % 3] });
     i++;
+  }
+  saveDutyData();
+}
+
+function trimPastDutyData() {
+  const today = todayISO();
+  const future = dutyData.filter(item => item.date >= today).slice(0, 30);
+  if (future.length !== dutyData.length) {
+    dutyData = future;
+    saveDutyData();
+  }
+  while (dutyData.length < 30) {
+    const lastDate = dutyData.length ? new Date(dutyData[dutyData.length - 1].date) : new Date();
+    lastDate.setDate(lastDate.getDate() + 1);
+    dutyData.push({ date: formatDate(lastDate), duty: staff[dutyData.length % 3] });
   }
   saveDutyData();
 }
@@ -108,6 +124,7 @@ function openDutyNote(index) {
 }
 
 function generateCalendar() {
+  trimPastDutyData();
   const tbody = document.getElementById("tableBody");
   if (!tbody) return;
   tbody.innerHTML = "";
@@ -116,12 +133,15 @@ function generateCalendar() {
     const d = new Date(item.date);
     const dayIndex = d.getDay();
     const dayName = days[dayIndex];
-    if (dayIndex === 5) row.classList.add("friday");
-    if (isHoliday(item.date)) row.classList.add("holiday");
+    const friday = dayIndex === 5;
+    const holiday = isHoliday(item.date);
+
     if (selectedSwap === index) row.classList.add("selected-row");
+
     let status = '<span class="badge badge-normal">Normal</span>';
-    if (dayIndex === 5) status = '<span class="badge badge-friday">Friday</span>';
-    if (isHoliday(item.date)) status = '<span class="badge badge-holiday">Holiday</span>';
+    if (friday) status = '<span class="badge badge-friday">Friday</span>';
+    if (holiday) status = '<span class="badge badge-holiday">Holiday</span>';
+
     const noteText = dutyNotes[item.date] ? `<div class="small text-muted mt-1">${dutyNotes[item.date]}</div>` : "";
     row.innerHTML = `
       <td>${item.date}</td>
@@ -129,21 +149,32 @@ function generateCalendar() {
       <td>${item.duty}</td>
       <td>${status}</td>
       <td>
-        <div class="d-flex gap-2 flex-wrap">
-          <button class="btn btn-sm btn-primary" onclick="selectSwap(${index})">Swap</button>
-          <button class="btn btn-sm btn-outline-secondary" onclick="openDutyNote(${index})">Note</button>
-        </div>
+        <a href="javascript:void(0)" class="text-decoration-none fw-semibold me-2" onclick="selectSwap(${index})">Swap</a>
+        <a href="javascript:void(0)" class="text-decoration-none fw-semibold" onclick="openDutyNote(${index})">Note</a>
         ${noteText}
       </td>
     `;
+
+    if (holiday) row.style.background = "rgba(220, 38, 38, 0.10)";
+    else if (friday) row.style.background = "rgba(37, 99, 235, 0.10)";
+
     tbody.appendChild(row);
   });
   updateDutySummary();
 }
 
 function selectSwap(index) {
-  if (selectedSwap === null) { selectedSwap = index; generateCalendar(); showToast("প্রথম দিন নির্বাচন হয়েছে", "secondary"); return; }
-  if (selectedSwap === index) { selectedSwap = null; generateCalendar(); return; }
+  if (selectedSwap === null) {
+    selectedSwap = index;
+    generateCalendar();
+    showToast("প্রথম দিন নির্বাচন হয়েছে", "secondary");
+    return;
+  }
+  if (selectedSwap === index) {
+    selectedSwap = null;
+    generateCalendar();
+    return;
+  }
   performSwap(selectedSwap, index);
   selectedSwap = null;
   generateCalendar();
@@ -161,6 +192,7 @@ function resetAllSwaps() {
   localStorage.removeItem(STORAGE_KEYS.dutyData);
   selectedSwap = null;
   buildDutyData();
+  trimPastDutyData();
   generateCalendar();
   showToast("সব Swap Reset হয়েছে", "warning");
 }
@@ -216,53 +248,78 @@ function populateMemberSelects() {
   ["depositMember", "settlementFrom", "settlementTo"].forEach(id => {
     const el = document.getElementById(id);
     if (!el) return;
-    el.innerHTML = members.map(name => `<option value="${name}">${name}</option>`).join("");
+    el.innerHTML = `<option value="">আপনার নাম</option>` + members.map(name => `<option value="${name}">${name}</option>`).join("");
   });
   const totalMembersCard = document.getElementById("totalMembersCard");
   if (totalMembersCard) totalMembersCard.textContent = members.length;
-  saveMembers();
 }
 
 function saveDeposit() {
   const member = document.getElementById("depositMember")?.value || "";
   const amount = Number(document.getElementById("depositAmount")?.value || 0);
-  if (!member || !amount || amount <= 0) return showToast("সঠিক deposit দিন", "danger");
+  if (!member) return showToast("আপনার নাম", "warning");
+  if (!amount || amount <= 0) return showToast("সঠিক deposit দিন", "danger");
   deposits.push({ id: crypto.randomUUID(), date: todayISO(), member, amount });
   saveDeposits();
   resetDepositForm();
   renderMoneyPage();
   renderAll();
-  showToast("Deposit saved", "success");
+  showToast("জমা saved", "success");
 }
 
-function resetDepositForm() { document.getElementById("depositForm")?.reset(); }
+function resetDepositForm() {
+  document.getElementById("depositForm")?.reset();
+}
 
 function saveSettlement() {
-  const date = document.getElementById("settlementDate")?.value || "";
   const from = document.getElementById("settlementFrom")?.value || "";
   const to = document.getElementById("settlementTo")?.value || "";
   const amount = Number(document.getElementById("settlementAmount")?.value || 0);
-  if (!date || !from || !to || !amount || amount <= 0) return showToast("সঠিক settlement দিন", "danger");
+  if (!from || !to || !amount || amount <= 0) return showToast("সঠিক পরিশোধ দিন", "danger");
   if (from === to) return showToast("দিলাম এবং পেলাম একই হতে পারে না", "warning");
-  settlements.push({ id: crypto.randomUUID(), date, from, to, amount });
+  settlements.push({ id: crypto.randomUUID(), date: todayISO(), from, to, amount });
   saveSettlements();
   resetSettlementForm();
   renderMoneyPage();
   renderAll();
-  showToast("Settlement saved", "success");
+  showToast("পরিশোধ saved", "success");
 }
 
 function resetSettlementForm() {
   document.getElementById("settlementForm")?.reset();
-  const date = document.getElementById("settlementDate");
-  if (date) date.value = todayISO();
 }
 
-function clearAllDeposits() { if (!confirm("সব deposit মুছতে চান?")) return; deposits = []; saveDeposits(); renderMoneyPage(); renderAll(); }
-function clearAllSettlements() { if (!confirm("সব settlement মুছতে চান?")) return; settlements = []; saveSettlements(); renderMoneyPage(); renderAll(); }
+function clearAllDeposits() {
+  if (!confirm("সব deposit মুছতে চান?")) return;
+  deposits = [];
+  saveDeposits();
+  renderMoneyPage();
+  renderAll();
+}
 
-function deleteDeposit(id) { if (!confirm("এই deposit delete করবেন?")) return; deposits = deposits.filter(d => d.id !== id); saveDeposits(); renderMoneyPage(); renderAll(); }
-function deleteSettlement(id) { if (!confirm("এই settlement delete করবেন?")) return; settlements = settlements.filter(s => s.id !== id); saveSettlements(); renderMoneyPage(); renderAll(); }
+function clearAllSettlements() {
+  if (!confirm("সব পরিশোধ মুছতে চান?")) return;
+  settlements = [];
+  saveSettlements();
+  renderMoneyPage();
+  renderAll();
+}
+
+function deleteDeposit(id) {
+  if (!confirm("এই deposit delete করবেন?")) return;
+  deposits = deposits.filter(d => d.id !== id);
+  saveDeposits();
+  renderMoneyPage();
+  renderAll();
+}
+
+function deleteSettlement(id) {
+  if (!confirm("এই পরিশোধ delete করবেন?")) return;
+  settlements = settlements.filter(s => s.id !== id);
+  saveSettlements();
+  renderMoneyPage();
+  renderAll();
+}
 
 function editDeposit(id) {
   const row = deposits.find(d => d.id === id);
@@ -271,8 +328,12 @@ function editDeposit(id) {
   const member = prompt("জমা পেল", row.member);
   const amount = prompt("Amount", row.amount);
   if (!date || !member || !amount) return;
-  row.date = date; row.member = member; row.amount = Number(amount);
-  saveDeposits(); renderMoneyPage(); renderAll();
+  row.date = date;
+  row.member = member;
+  row.amount = Number(amount);
+  saveDeposits();
+  renderMoneyPage();
+  renderAll();
 }
 
 function editSettlement(id) {
@@ -283,11 +344,18 @@ function editSettlement(id) {
   const to = prompt("পেলাম", row.to);
   const amount = prompt("Amount", row.amount);
   if (!date || !from || !to || !amount) return;
-  row.date = date; row.from = from; row.to = to; row.amount = Number(amount);
-  saveSettlements(); renderMoneyPage(); renderAll();
+  row.date = date;
+  row.from = from;
+  row.to = to;
+  row.amount = Number(amount);
+  saveSettlements();
+  renderMoneyPage();
+  renderAll();
 }
 
-function renderDutyPage() { generateCalendar(); }
+function renderDutyPage() {
+  generateCalendar();
+}
 
 function renderMoneyPage() {
   populateMemberSelects();
@@ -302,7 +370,9 @@ function renderMoneyPage() {
 
   const calcBody = document.getElementById("settlementCalcBody");
   if (calcBody) {
-    calcBody.innerHTML = remaining.length ? remaining.map(x => `<tr><td>${x.from}</td><td>${x.to}</td><td>৳ ${money(x.amount)}</td></tr>`).join("") : `<tr><td colspan="3" class="text-center">No Remaining Settlement</td></tr>`;
+    calcBody.innerHTML = remaining.length
+      ? remaining.map(x => `<tr><td>${x.from}</td><td>${x.to}</td><td>৳ ${money(x.amount)}</td></tr>`).join("")
+      : `<tr><td colspan="3" class="text-center">No Remaining Settlement</td></tr>`;
   }
 
   const noRemaining = document.getElementById("noRemainingBox");
@@ -310,35 +380,56 @@ function renderMoneyPage() {
 
   const histBody = document.getElementById("historyBody");
   if (histBody) {
-    const q3 = document.getElementById("historySearch")?.value.trim().toLowerCase() || "";
+    const q = document.getElementById("historySearch")?.value.trim().toLowerCase() || "";
     const history = [
-      ...deposits.map(x => ({ id: x.id, type: "Deposit", date: x.date, name: x.member, mode: "পেল", amount: x.amount, action: "deposit" })),
-      ...settlements.map(x => ({ id: x.id, type: "Settlement", date: x.date, name: `${x.from} → ${x.to}`, mode: "দিল", amount: x.amount, action: "settlement" }))
+      ...deposits.map(x => ({ id: x.id, type: "জমা", date: x.date, name: x.member, mode: "পেল", amount: x.amount, action: "deposit" })),
+      ...settlements.map(x => ({ id: x.id, type: "পরিশোধ", date: x.date, name: `${x.from} → ${x.to}`, mode: "দিল", amount: x.amount, action: "settlement" }))
     ]
-      .filter(x => !q3 || `${x.date} ${x.type} ${x.name} ${x.mode} ${x.amount}`.toLowerCase().includes(q3))
+      .filter(x => !q || `${x.date} ${x.type} ${x.name} ${x.mode} ${x.amount}`.toLowerCase().includes(q))
       .sort((a, b) => b.date.localeCompare(a.date));
-    histBody.innerHTML = history.length ? history.map(r => `
-      <tr>
-        <td>${r.date}</td>
-        <td>${r.type}</td>
-        <td>${r.name}</td>
-        <td>${r.mode}</td>
-        <td>৳ ${money(r.amount)}</td>
-        <td>
-          <button class="btn btn-sm btn-outline-primary" onclick="${r.action === "deposit" ? `editDeposit('${r.id}')` : `editSettlement('${r.id}')`}">Edit</button>
-          <button class="btn btn-sm btn-outline-danger" onclick="${r.action === "deposit" ? `deleteDeposit('${r.id}')` : `deleteSettlement('${r.id}')`}">Delete</button>
-        </td>
-      </tr>
-    `).join("") : `<tr><td colspan="6" class="text-center text-muted">No history found</td></tr>`;
+
+    histBody.innerHTML = history.length
+      ? history.map(r => `
+        <tr>
+          <td>${r.date}</td>
+          <td>${r.type}</td>
+          <td>${r.name}</td>
+          <td>${r.mode}</td>
+          <td>৳ ${money(r.amount)}</td>
+          <td>
+            <button class="btn btn-sm btn-outline-primary" onclick="${r.action === "deposit" ? `editDeposit('${r.id}')` : `editSettlement('${r.id}')`}">Edit</button>
+            <button class="btn btn-sm btn-outline-danger" onclick="${r.action === "deposit" ? `deleteDeposit('${r.id}')` : `deleteSettlement('${r.id}')`}">Delete</button>
+          </td>
+        </tr>
+      `).join("")
+      : `<tr><td colspan="6" class="text-center text-muted">No history found</td></tr>`;
   }
 
   const calcHint = document.getElementById("calcHint");
   if (calcHint) calcHint.textContent = `Auto calculation based on ${members.length} members`;
 }
 
-function renderAll() { renderDutyPage(); renderMoneyPage(); }
-function showDutyTab() { document.getElementById("dutyPage").classList.remove("d-none"); document.getElementById("moneyPage").classList.add("d-none"); document.getElementById("dutyTabBtn").classList.add("active"); document.getElementById("moneyTabBtn").classList.remove("active"); renderDutyPage(); }
-function showMoneyTab() { document.getElementById("dutyPage").classList.add("d-none"); document.getElementById("moneyPage").classList.remove("d-none"); document.getElementById("dutyTabBtn").classList.remove("active"); document.getElementById("moneyTabBtn").classList.add("active"); renderMoneyPage(); }
+function renderAll() {
+  renderDutyPage();
+  renderMoneyPage();
+}
+
+function showDutyTab() {
+  document.getElementById("dutyPage").classList.remove("d-none");
+  document.getElementById("moneyPage").classList.add("d-none");
+  document.getElementById("dutyTabBtn").classList.add("active");
+  document.getElementById("moneyTabBtn").classList.remove("active");
+  renderDutyPage();
+}
+
+function showMoneyTab() {
+  document.getElementById("dutyPage").classList.add("d-none");
+  document.getElementById("moneyPage").classList.remove("d-none");
+  document.getElementById("dutyTabBtn").classList.remove("active");
+  document.getElementById("moneyTabBtn").classList.add("active");
+  renderMoneyPage();
+}
+
 function openMemberModal() { memberModal?.show(); }
 function closeMemberModal() { memberModal?.hide(); }
 
@@ -387,7 +478,11 @@ function importJSON(event) {
       settlements = data.settlements || [];
       dutyData = data.dutyData || dutyData;
       dutyNotes = data.dutyNotes || {};
-      saveMembers(); saveDeposits(); saveSettlements(); saveDutyData(); saveDutyNotes();
+      saveMembers();
+      saveDeposits();
+      saveSettlements();
+      saveDutyData();
+      saveDutyNotes();
       renderAll();
       showToast("JSON imported", "success");
     } catch {
@@ -422,7 +517,11 @@ function deleteAllData() {
   settlements = [];
   dutyNotes = {};
   buildDutyData();
-  saveMembers(); saveDeposits(); saveSettlements(); saveDutyData(); saveDutyNotes();
+  saveMembers();
+  saveDeposits();
+  saveSettlements();
+  saveDutyData();
+  saveDutyNotes();
   renderAll();
   showToast("All data deleted", "warning");
 }
@@ -446,7 +545,5 @@ function toggleTheme() {
 document.addEventListener("DOMContentLoaded", () => {
   applyTheme();
   loadDutyData();
-  const settlementDate = document.getElementById("settlementDate");
-  if (settlementDate) settlementDate.value = todayISO();
   renderAll();
 });
