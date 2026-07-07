@@ -1,146 +1,90 @@
-*{margin:0;padding:0;box-sizing:border-box;}
-html{scroll-behavior:smooth;}
-body{
-  font-family:Arial,Helvetica,sans-serif;
-  background:#f8fafc;
-  color:#111827;
-  padding:16px;
+body {
+  padding: 25px;
+  font-family: Arial, sans-serif;
 }
-.container{max-width:1200px;margin:auto;}
-header{
-  background:#2563eb;
-  color:#fff;
-  padding:18px;
-  border-radius:10px;
-  margin-bottom:16px;
-  text-align:center;
+
+.title {
+  color: #5C6AC4;
 }
-header h1{font-size:28px;margin-bottom:6px;}
-header p{font-size:14px;}
-.login-box,.user-info,.policy-banner,.queue-box,.history-box,.tools{
-  background:#fff;
-  border:1px solid #e5e7eb;
-  padding:14px;
-  border-radius:10px;
-  margin-bottom:14px;
+
+.note {
+  margin: 8px 0 14px;
+  color: #555;
 }
-.login-box input,.tools input{
-  width:100%;
-  padding:10px 12px;
-  border:1px solid #d1d5db;
-  border-radius:8px;
-  margin-top:8px;
+
+.controls {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 12px;
 }
-.login-box button,.logout-btn{
-  margin-top:10px;
-  background:#2563eb;
-  color:#fff;
-  border:none;
-  padding:8px 12px;
-  border-radius:8px;
-  cursor:pointer;
+
+.controls select,
+.controls button {
+  padding: 6px 10px;
 }
-.logout-btn{background:#dc2626;}
-.login-msg{margin-top:8px;font-size:13px;color:#dc2626;}
-.user-info{
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  gap:10px;
+
+.legend {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 12px;
 }
-.policy-banner{
-  background:#eff6ff;
-  border-color:#bfdbfe;
-  color:#1e3a8a;
+
+.legend span,
+.badge {
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 13px;
+  display: inline-block;
 }
-.dashboard{
-  display:grid;
-  grid-template-columns:repeat(auto-fit,minmax(200px,1fr));
-  gap:14px;
-  margin-bottom:16px;
+
+.holiday {
+  background: #ffe1e1 !important;
 }
-.card{
-  background:#fff;
-  padding:16px;
-  border-radius:10px;
-  border:1px solid #e5e7eb;
+
+.friday {
+  background: #fff4b8 !important;
 }
-.card h2{text-align:center;margin-bottom:12px;color:#2563eb;font-size:20px;}
-.card p{
-  display:flex;
-  justify-content:space-between;
-  padding:6px 0;
-  border-bottom:1px solid #f1f5f9;
-  font-size:14px;
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+  margin-top: 10px;
 }
-.queue-list,.history-list{
-  display:flex;
-  flex-direction:column;
-  gap:8px;
+
+th, td {
+  border: 1px solid #ccc;
+  padding: 8px;
+  text-align: left;
 }
-.queue-item,.history-item{
-  background:#fff;
-  border:1px solid #e5e7eb;
-  padding:12px;
-  border-radius:8px;
-  display:flex;
-  justify-content:space-between;
-  gap:10px;
+
+th {
+  background: #f4f4f4;
 }
-.table-box{
-  background:#fff;
-  padding:12px;
-  border-radius:10px;
-  overflow:auto;
-  border:1px solid #e5e7eb;
+
+tr.friday-row {
+  background: #fffdf0;
 }
-table{width:100%;border-collapse:collapse;min-width:850px;}
-th{
-  background:#1e3a8a;
-  color:#fff;
-  padding:10px;
-  font-size:14px;
+
+tr.holiday-row {
+  background: #ffecec;
 }
-td{
-  padding:9px;
-  text-align:center;
-  border-bottom:1px solid #e5e7eb;
+
+tr.selected-row {
+  outline: 2px solid #1a56db;
 }
-tr:hover{background:#f8fafc;}
-.friday{background:#dcfce7!important;}
-.holiday{background:#fee2e2!important;}
-button{
-  background:#2563eb;
-  color:#fff;
-  border:none;
-  padding:7px 12px;
-  border-radius:6px;
-  cursor:pointer;
-  font-size:13px;
+
+td.duty-cell {
+  cursor: pointer;
+  color: #1a56db;
+  font-weight: bold;
 }
-button:hover{background:#1d4ed8;}
-.reject-btn{background:#dc2626;}
-.reject-btn:hover{background:#b91c1c;}
-.badge{
-  padding:4px 8px;
-  border-radius:20px;
-  font-size:12px;
-  color:#fff;
+
+td.duty-cell:hover {
+  text-decoration: underline;
 }
-.badge-normal{background:#2563eb;}
-.badge-friday{background:#16a34a;}
-.badge-holiday{background:#dc2626;}
-.selected-row{background:#fef08a!important;}
-.footer{
-  margin-top:18px;
-  text-align:center;
-  font-size:13px;
-  color:#64748b;
-}
-@media(max-width:768px){
-  body{padding:10px;}
-  header h1{font-size:22px;}
-  .dashboard{grid-template-columns:1fr;}
-  .queue-item,.history-item,.user-info{flex-direction:column;align-items:flex-start;}
-  table{min-width:760px;}
+
+#dutyTable tbody tr.friday,
+#dutyTable tbody tr.holiday {
+  font-weight: 600;
 }
