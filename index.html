@@ -1,91 +1,262 @@
 <!DOCTYPE html>
-<html lang="bn">
+<html lang="bn" data-theme="light">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Duty Roster 2026</title>
-<meta name="description" content="Bangladesh Duty Roster 2026">
-<meta name="theme-color" content="#2563eb">
-<link rel="icon" href="data:,">
-<link rel="stylesheet" href="styles.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Duty Roster 2026</title>
+  <meta name="description" content="Bangladesh Duty Roster 2026">
+  <meta name="theme-color" content="#2563eb">
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 </head>
 <body>
-<div class="container">
-  <header>
-    <h1>Duty Roster 2026</h1>
+<div class="container py-3">
+  <header class="app-header">
+    <h1>📅 Duty Roster 2026</h1>
     <p>বাংলাদেশ অফিস ডিউটি ম্যানেজমেন্ট সিস্টেম</p>
   </header>
 
-  <section class="login-box" id="loginBox">
-    <h3>Login</h3>
-    <input id="mobileInput" type="text" placeholder="Mobile Number">
-    <input id="passwordInput" type="password" placeholder="Password">
-    <button onclick="loginUser()">Login</button>
-    <div id="loginMsg" class="login-msg"></div>
-  </section>
+  <div class="top-tabs">
+    <button class="tab-btn active" id="dutyTabBtn" onclick="showDutyTab()">ডিউটি পেজ</button>
+    <button class="tab-btn" id="moneyTabBtn" onclick="showMoneyTab()">টাকার হিসাব</button>
+  </div>
 
-  <section class="user-info" id="userInfo" style="display:none;">
-    <div><strong>Logged in as:</strong> <span id="currentUserName"></span></div>
-    <button class="logout-btn" onclick="logoutUser()">Logout</button>
-  </section>
+  <section id="dutyPage">
+    <section class="dashboard-grid">
+      <div class="stat-card">
+        <div class="stat-icon bg-primary"><i class="bi bi-calendar-check"></i></div>
+        <div>
+          <div class="stat-label">মোট ডিউটি</div>
+          <div class="stat-value" id="hasanTotal">0</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon bg-success"><i class="bi bi-calendar-event"></i></div>
+        <div>
+          <div class="stat-label">শুক্রবার</div>
+          <div class="stat-value" id="newazFriday">0</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon bg-warning"><i class="bi bi-bag-check"></i></div>
+        <div>
+          <div class="stat-label">সরকারি ছুটি</div>
+          <div class="stat-value" id="shafiqHoliday">0</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon bg-danger"><i class="bi bi-arrow-left-right"></i></div>
+        <div>
+          <div class="stat-label">Swap</div>
+          <div class="stat-value" id="swapCount">0</div>
+        </div>
+      </div>
+    </section>
 
-  <section class="policy-banner">
-    Login করার পর শুধু নিজের account দিয়ে swap request approve/reject করতে পারবে।
-  </section>
-
-  <section class="tools">
-    <input id="searchInput" type="text" placeholder="Search date / duty name..." onkeyup="filterTable()">
-  </section>
-
-  <section class="dashboard">
-    <div class="card">
-      <h2>হাসান</h2>
-      <p><span>মোট</span><span id="hasanTotal">0</span></p>
-      <p><span>শুক্রবার</span><span id="hasanFriday">0</span></p>
-      <p><span>ছুটি</span><span id="hasanHoliday">0</span></p>
+    <div class="d-flex justify-content-center gap-2 mb-3 flex-wrap">
+      <button class="btn btn-outline-primary" onclick="resetAllSwaps()">সব Swap Reset</button>
+      <button class="btn btn-outline-secondary" onclick="downloadDutyJSON()">Download Duty JSON</button>
     </div>
-    <div class="card">
-      <h2>নেওয়াজ</h2>
-      <p><span>মোট</span><span id="newazTotal">0</span></p>
-      <p><span>শুক্রবার</span><span id="newazFriday">0</span></p>
-      <p><span>ছুটি</span><span id="newazHoliday">0</span></p>
+
+    <section class="table-box">
+      <table class="table align-middle mb-0" id="dutyTable">
+        <thead>
+          <tr>
+            <th>তারিখ</th>
+            <th>বার</th>
+            <th>ডিউটি</th>
+            <th>স্ট্যাটাস</th>
+            <th>নোট / Swap</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+    </section>
+  </section>
+
+  <section id="moneyPage" class="d-none">
+    <div class="dashboard-grid">
+      <div class="stat-card">
+        <div class="stat-icon bg-primary"><i class="bi bi-wallet2"></i></div>
+        <div>
+          <div class="stat-label">মোট জমা</div>
+          <div class="stat-value" id="totalDepositCard">0</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon bg-success"><i class="bi bi-people"></i></div>
+        <div>
+          <div class="stat-label">জন প্রতি ভাগ</div>
+          <div class="stat-value" id="perPersonCard">0</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon bg-warning"><i class="bi bi-person-plus"></i></div>
+        <div>
+          <div class="stat-label">মোট সদস্য</div>
+          <div class="stat-value" id="totalMembersCard">3</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon bg-danger"><i class="bi bi-arrow-left-right"></i></div>
+        <div>
+          <div class="stat-label">Remaining Settlement</div>
+          <div class="stat-value" id="remainingCountCard">0</div>
+        </div>
+      </div>
     </div>
-    <div class="card">
-      <h2>শফিক</h2>
-      <p><span>মোট</span><span id="shafiqTotal">0</span></p>
-      <p><span>শুক্রবার</span><span id="shafiqFriday">0</span></p>
-      <p><span>ছুটি</span><span id="shafiqHoliday">0</span></p>
+
+    <div class="row g-3">
+      <div class="col-lg-6">
+        <div class="card app-card">
+          <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0"><i class="bi bi-plus-circle me-2"></i>জমা (Receive Money)</h5>
+            <button class="btn btn-sm btn-primary" onclick="openMemberModal()">সদস্য যোগ</button>
+          </div>
+          <div class="card-body">
+            <form id="depositForm" onsubmit="event.preventDefault(); saveDeposit();">
+              <div class="mb-3">
+                <label class="form-label">জমা পেল</label>
+                <select id="depositMember" class="form-select" required></select>
+              </div>
+              <div class="mb-3">
+                <label class="form-label">পরিমাণ</label>
+                <input type="number" id="depositAmount" class="form-control" min="1" placeholder="900" required>
+              </div>
+              <div class="d-flex gap-2 flex-wrap">
+                <button class="btn btn-primary" type="submit">Save</button>
+                <button class="btn btn-outline-secondary" type="button" onclick="resetDepositForm()">Reset</button>
+                <button class="btn btn-outline-danger" type="button" onclick="clearAllDeposits()">Clear All</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-lg-6">
+        <div class="card app-card">
+          <div class="card-header">
+            <h5 class="mb-0"><i class="bi bi-arrow-left-right me-2"></i>Settlement Entry</h5>
+          </div>
+          <div class="card-body">
+            <form id="settlementForm" onsubmit="event.preventDefault(); saveSettlement();">
+              <div class="mb-3">
+                <label class="form-label">Date</label>
+                <input type="date" id="settlementDate" class="form-control" required>
+              </div>
+              <div class="row g-2">
+                <div class="col-md-4">
+                  <label class="form-label">দিলাম</label>
+                  <select id="settlementFrom" class="form-select" required></select>
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label">পেলাম</label>
+                  <select id="settlementTo" class="form-select" required></select>
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label">Amount</label>
+                  <input type="number" id="settlementAmount" class="form-control" min="1" placeholder="300" required>
+                </div>
+              </div>
+              <div class="d-flex gap-2 flex-wrap mt-3">
+                <button class="btn btn-success" type="submit">Save</button>
+                <button class="btn btn-outline-secondary" type="button" onclick="resetSettlementForm()">Reset</button>
+                <button class="btn btn-outline-danger" type="button" onclick="clearAllSettlements()">Clear All</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-12">
+        <div class="card app-card">
+          <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <h5 class="mb-0"><i class="bi bi-diagram-3 me-2"></i>Settlement Calculation</h5>
+            <span class="text-muted small" id="calcHint"></span>
+          </div>
+          <div class="card-body table-responsive">
+            <table class="table table-bordered mb-0">
+              <thead>
+                <tr>
+                  <th>দিবে</th>
+                  <th>পাবে</th>
+                  <th>Amount</th>
+                </tr>
+              </thead>
+              <tbody id="settlementCalcBody"></tbody>
+            </table>
+            <div id="noRemainingBox" class="alert alert-info d-none mt-3 mb-0">No Remaining Settlement</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-lg-7">
+        <div class="card app-card">
+          <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <h5 class="mb-0"><i class="bi bi-clock-history me-2"></i>Transaction History</h5>
+            <input type="text" id="historySearch" class="form-control form-control-sm w-auto" placeholder="Search history..." oninput="renderAll()">
+          </div>
+          <div class="card-body table-responsive">
+            <table class="table table-striped mb-0">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Type</th>
+                  <th>নাম</th>
+                  <th>পেল/দিল</th>
+                  <th>Amount</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="historyBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-lg-5">
+        <div class="card app-card">
+          <div class="card-header">
+            <h5 class="mb-0"><i class="bi bi-tools me-2"></i>Tools</h5>
+          </div>
+          <div class="card-body d-grid gap-2">
+            <button class="btn btn-outline-primary" onclick="exportJSON()"><i class="bi bi-filetype-json me-2"></i>Export JSON</button>
+            <label class="btn btn-outline-success mb-0">
+              <i class="bi bi-upload me-2"></i>Import JSON
+              <input type="file" class="d-none" accept="application/json" onchange="importJSON(event)">
+            </label>
+            <button class="btn btn-outline-secondary" onclick="copyReport()"><i class="bi bi-clipboard me-2"></i>Copy Report</button>
+            <button class="btn btn-outline-danger" onclick="deleteAllData()"><i class="bi bi-trash me-2"></i>Delete All Data</button>
+          </div>
+        </div>
+      </div>
     </div>
   </section>
-
-  <section class="queue-box">
-    <h3>Swap Request Queue</h3>
-    <div id="swapQueue" class="queue-list"></div>
-  </section>
-
-  <section class="history-box">
-    <h3>Approval History</h3>
-    <div id="historyList" class="history-list"></div>
-  </section>
-
-  <section class="table-box">
-    <table id="dutyTable">
-      <thead>
-        <tr>
-          <th>তারিখ</th>
-          <th>বার</th>
-          <th>ডিউটি</th>
-          <th>স্ট্যাটাস</th>
-          <th>Swap</th>
-        </tr>
-      </thead>
-      <tbody id="tableBody"></tbody>
-    </table>
-  </section>
-
-  <div class="footer">Duty Roster 2026</div>
 </div>
 
+<div class="modal fade" id="memberModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Add Member</h5>
+        <button type="button" class="btn-close" onclick="closeMemberModal()"></button>
+      </div>
+      <div class="modal-body">
+        <input type="text" id="newMemberName" class="form-control" placeholder="নতুন সদস্যের নাম">
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeMemberModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="addMember()">Add</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast-container position-fixed bottom-0 end-0 p-3" id="toastContainer"></div>
+
 <script src="script.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
