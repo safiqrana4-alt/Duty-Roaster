@@ -1,4 +1,9 @@
-const staff = ["হাসান", "নেওয়াজ", "শফিক"];
+const staff = [
+  { name: "হাসান", mobile: "01711111111", password: "1234" },
+  { name: "নেওয়াজ", mobile: "01722222222", password: "1234" },
+  { name: "শফিক", mobile: "01733333333", password: "1234" }
+];
+
 const days = ["রবিবার", "সোমবার", "মঙ্গলবার", "বুধবার", "বৃহস্পতিবার", "শুক্রবার", "শনিবার"];
 const holidays = [
   "2026-02-21",
@@ -12,28 +17,9 @@ const holidays = [
 
 let dutyData = [];
 let selectedSwap = null;
-let loggedInUser = "";
-let loggedInRole = "";
-let otpVerified = false;
-let currentOtp = "";
 let swapQueue = [];
 let approvalHistory = [];
-
-const adminAccount = { user: "admin", pass: "admin123" };
-
-const defaultUsers = {
-  হাসান: { username: "hasan", password: "1111", mobile: "01700000001" },
-  নেওয়াজ: { username: "newaz", password: "2222", mobile: "01700000002" },
-  শফিক: { username: "shafiq", password: "3333", mobile: "01700000003" }
-};
-
-function getUsers() {
-  return JSON.parse(localStorage.getItem("users")) || defaultUsers;
-}
-
-function saveUsers(users) {
-  localStorage.setItem("users", JSON.stringify(users));
-}
+let currentUser = null;
 
 const tbody = document.getElementById("tableBody");
 
@@ -54,152 +40,13 @@ function isHoliday(dateStr) {
   return holidays.includes(dateStr);
 }
 
-function adminLogin() {
-  const user = document.getElementById("adminUser").value.trim();
-  const pass = document.getElementById("adminPass").value.trim();
-  const status = document.getElementById("adminStatus");
-
-  if (user === adminAccount.user && pass === adminAccount.pass) {
-    loggedInRole = "admin";
-    status.textContent = "Admin logged in";
-    status.style.color = "#166534";
-  } else {
-    loggedInRole = "";
-    status.textContent = "Admin login failed";
-    status.style.color = "#b91c1c";
-    alert("Invalid admin credentials");
-  }
-}
-
-function adminLogout() {
-  loggedInRole = "";
-  document.getElementById("adminUser").value = "";
-  document.getElementById("adminPass").value = "";
-  const status = document.getElementById("adminStatus");
-  status.textContent = "Admin not logged in";
-  status.style.color = "#475569";
-}
-
-function setUserPassword() {
-  if (loggedInRole !== "admin") {
-    alert("Admin login required");
-    return;
-  }
-
-  const target = document.getElementById("targetUser").value;
-  const username = document.getElementById("newUsername").value.trim();
-  const password = document.getElementById("newPassword").value.trim();
-
-  if (!username || !password) {
-    alert("Enter username and password");
-    return;
-  }
-
-  const users = getUsers();
-  users[target] = { ...(users[target] || {}), username, password };
-  saveUsers(users);
-
-  document.getElementById("adminActionStatus").textContent = `${target} credentials updated`;
-  document.getElementById("adminActionStatus").style.color = "#166534";
-  document.getElementById("newUsername").value = "";
-  document.getElementById("newPassword").value = "";
-}
-
-function loginUser() {
-  const username = document.getElementById("loginUser").value.trim();
-  const pass = document.getElementById("loginPass").value.trim();
-  const status = document.getElementById("loginStatus");
-  const users = getUsers();
-
-  const matched = Object.keys(users).find(key => users[key].username === username && users[key].password === pass);
-
-  if (matched) {
-    loggedInUser = matched;
-    loggedInRole = "user";
-    otpVerified = false;
-    currentOtp = "";
-    document.getElementById("otpStatus").textContent = "OTP not verified";
-    document.getElementById("otpStatus").style.color = "#475569";
-    status.textContent = `Logged in as ${matched}`;
-    status.style.color = "#166534";
-  } else {
-    loggedInUser = "";
-    status.textContent = "Login failed";
-    status.style.color = "#b91c1c";
-    alert("Invalid username or password");
-  }
-}
-
-function logoutUser() {
-  loggedInUser = "";
-  loggedInRole = "";
-  otpVerified = false;
-  currentOtp = "";
-  document.getElementById("loginUser").value = "";
-  document.getElementById("loginPass").value = "";
-  document.getElementById("mobileNumber").value = "";
-  document.getElementById("otpInput").value = "";
-  document.getElementById("loginStatus").textContent = "Not logged in";
-  document.getElementById("loginStatus").style.color = "#475569";
-  document.getElementById("otpStatus").textContent = "OTP not verified";
-  document.getElementById("otpStatus").style.color = "#475569";
-}
-
-function sendOtp() {
-  if (!loggedInUser) {
-    alert("Login first");
-    return;
-  }
-
-  const users = getUsers();
-  const mobile = document.getElementById("mobileNumber").value.trim();
-  if (!mobile) {
-    alert("Enter mobile number");
-    return;
-  }
-
-  if (users[loggedInUser].mobile !== mobile) {
-    alert("Mobile number does not match user");
-    return;
-  }
-
-  currentOtp = String(Math.floor(100000 + Math.random() * 900000));
-  document.getElementById("otpStatus").textContent = `OTP sent to ${mobile} (demo: ${currentOtp})`;
-  document.getElementById("otpStatus").style.color = "#b45309";
-}
-
-function verifyOtp() {
-  const otp = document.getElementById("otpInput").value.trim();
-  const status = document.getElementById("otpStatus");
-
-  if (!currentOtp) {
-    alert("Send OTP first");
-    return;
-  }
-
-  if (otp === currentOtp) {
-    otpVerified = true;
-    status.textContent = "OTP verified successfully";
-    status.style.color = "#166534";
-  } else {
-    otpVerified = false;
-    status.textContent = "OTP verification failed";
-    status.style.color = "#b91c1c";
-  }
-}
-
 function buildDutyData() {
   dutyData = [];
   let i = 0;
-
   for (let d = new Date(2026, 0, 1); d <= new Date(2026, 11, 31); d.setDate(d.getDate() + 1)) {
-    dutyData.push({
-      date: formatDate(d),
-      duty: staff[i % 3]
-    });
+    dutyData.push({ date: formatDate(d), duty: staff[i % 3].name });
     i++;
   }
-
   localStorage.setItem("dutyData", JSON.stringify(dutyData));
 }
 
@@ -207,77 +54,93 @@ function updateSummary() {
   document.getElementById("hasanTotal").textContent = summary["হাসান"].total;
   document.getElementById("hasanFriday").textContent = summary["হাসান"].friday;
   document.getElementById("hasanHoliday").textContent = summary["হাসান"].holiday;
-
   document.getElementById("newazTotal").textContent = summary["নেওয়াজ"].total;
   document.getElementById("newazFriday").textContent = summary["নেওয়াজ"].friday;
   document.getElementById("newazHoliday").textContent = summary["নেওয়াজ"].holiday;
-
   document.getElementById("shafiqTotal").textContent = summary["শফিক"].total;
   document.getElementById("shafiqFriday").textContent = summary["শফিক"].friday;
   document.getElementById("shafiqHoliday").textContent = summary["শফিক"].holiday;
 }
 
-function updatePolicyBanner() {
-  let banner = document.getElementById("policyBanner");
-  if (!banner) {
-    banner = document.createElement("div");
-    banner.id = "policyBanner";
-    banner.className = "policy-banner";
-    document.querySelector(".container").insertBefore(banner, document.querySelector(".dashboard"));
+function updateUserUI() {
+  const loginBox = document.getElementById("loginBox");
+  const userInfo = document.getElementById("userInfo");
+  const currentUserName = document.getElementById("currentUserName");
+
+  if (currentUser) {
+    loginBox.style.display = "none";
+    userInfo.style.display = "flex";
+    currentUserName.textContent = currentUser.name;
+  } else {
+    loginBox.style.display = "block";
+    userInfo.style.display = "none";
+  }
+}
+
+function loginUser() {
+  const mobile = document.getElementById("mobileInput").value.trim();
+  const password = document.getElementById("passwordInput").value.trim();
+  const msg = document.getElementById("loginMsg");
+
+  if (!mobile || !password) {
+    msg.textContent = "Mobile number এবং password দিতে হবে";
+    return;
   }
 
-  banner.innerHTML = `
-    <strong>Duty Policy:</strong> user login + OTP verification + admin final approval required.
-  `;
+  const user = staff.find(item => item.mobile === mobile && item.password === password);
+  if (!user) {
+    msg.textContent = "Invalid mobile number or password";
+    return;
+  }
+
+  currentUser = user;
+  localStorage.setItem("currentUser", JSON.stringify(currentUser));
+  document.getElementById("mobileInput").value = "";
+  document.getElementById("passwordInput").value = "";
+  msg.textContent = "";
+  updateUserUI();
+  renderSwapQueue();
+}
+
+function logoutUser() {
+  currentUser = null;
+  localStorage.removeItem("currentUser");
+  selectedSwap = null;
+  updateUserUI();
+  renderSwapQueue();
 }
 
 function renderSwapQueue() {
   const box = document.getElementById("swapQueue");
+
   if (!swapQueue.length) {
     box.innerHTML = "<div class='queue-item'>No pending swap request</div>";
     return;
   }
 
-  box.innerHTML = swapQueue.map((item, idx) => `
-    <div class="queue-item">
-      <div>
-        <strong>${item.requester}</strong> wants swap with <strong>${item.approver}</strong><br>
-        ${item.firstDate} ↔ ${item.secondDate}
+  box.innerHTML = swapQueue.map(item => {
+    const canRespond = currentUser && item.to === currentUser.name && item.status === "Pending Permission";
+    return `
+      <div class="queue-item">
+        <div>
+          <strong>${item.from}</strong> → <strong>${item.to}</strong><br>
+          ${item.firstDate} ↔ ${item.secondDate}
+        </div>
+        <div>
+          <span class="badge ${item.status === "Approved" ? "badge-friday" : item.status === "Rejected" ? "badge-holiday" : "badge-normal"}">${item.status}</span>
+          ${canRespond ? `<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;">
+            <button onclick="approveSwap('${item.id}')">Approve</button>
+            <button class="reject-btn" onclick="rejectSwap('${item.id}')">Reject</button>
+          </div>` : `<div style="margin-top:8px;font-size:12px;color:#64748b;">Only ${item.to} can respond</div>`}
+        </div>
       </div>
-      <div>
-        <div>${item.status}</div>
-        ${item.status === "Pending" && loggedInRole === "admin" ? `<button onclick="adminApproveSwap(${idx})">Approve</button>` : ""}
-      </div>
-    </div>
-  `).join("");
-}
-
-function adminApproveSwap(idx) {
-  if (loggedInRole !== "admin") {
-    alert("Admin login required");
-    return;
-  }
-
-  const item = swapQueue[idx];
-  if (!item || item.status !== "Pending") return;
-
-  performSwap(item.firstIndex, item.secondIndex);
-  item.status = "Approved by admin";
-
-  approvalHistory.push({
-    by: "admin",
-    action: "approved",
-    date: item.secondDate,
-    detail: `${item.requester} ↔ ${item.approver}`,
-    time: new Date().toLocaleTimeString()
-  });
-
-  renderSwapQueue();
-  renderHistory();
+    `;
+  }).join("");
 }
 
 function renderHistory() {
   const box = document.getElementById("historyList");
+
   if (!approvalHistory.length) {
     box.innerHTML = "<div class='history-item'>No approval history</div>";
     return;
@@ -286,7 +149,7 @@ function renderHistory() {
   box.innerHTML = approvalHistory.slice().reverse().map(item => `
     <div class="history-item">
       <div>
-        <strong>${item.by}</strong> ${item.action} swap on ${item.date}<br>
+        <strong>${item.by}</strong> ${item.action}<br>
         ${item.detail}
       </div>
       <div>${item.time}</div>
@@ -296,11 +159,8 @@ function renderHistory() {
 
 function filterTable() {
   const query = document.getElementById("searchInput").value.toLowerCase();
-  const rows = document.querySelectorAll("#tableBody tr");
-
-  rows.forEach(row => {
-    const text = row.textContent.toLowerCase();
-    row.style.display = text.includes(query) ? "" : "none";
+  document.querySelectorAll("#tableBody tr").forEach(row => {
+    row.style.display = row.textContent.toLowerCase().includes(query) ? "" : "none";
   });
 }
 
@@ -323,13 +183,11 @@ function generateCalendar() {
     summary[person].total++;
 
     let status = '<span class="badge badge-normal">Normal</span>';
-
     if (dayIndex === 5) {
       row.classList.add("friday");
       summary[person].friday++;
       status = '<span class="badge badge-friday">Friday</span>';
     }
-
     if (isHoliday(dateStr)) {
       row.classList.add("holiday");
       summary[person].holiday++;
@@ -341,21 +199,19 @@ function generateCalendar() {
       <td>${dayName}</td>
       <td>${person}</td>
       <td>${status}</td>
-      <td><button onclick="selectSwap(${index})">Swap</button></td>
+      <td><button onclick="selectSwap(${index})">Request Swap</button></td>
     `;
-
     tbody.appendChild(row);
     index++;
   }
 
   updateSummary();
-  updatePolicyBanner();
   filterTable();
 }
 
 function selectSwap(index) {
-  if (!loggedInUser || !otpVerified) {
-    alert("Login and OTP verification required");
+  if (!currentUser) {
+    alert("আগে login করুন");
     return;
   }
 
@@ -364,7 +220,7 @@ function selectSwap(index) {
   if (selectedSwap === null) {
     selectedSwap = index;
     rows[index].classList.add("selected-row");
-    alert("প্রথম দিন নির্বাচন হয়েছে। এখন দ্বিতীয় দিন নির্বাচন করুন।");
+    alert("প্রথম duty select হয়েছে। এখন দ্বিতীয় duty select করুন।");
     return;
   }
 
@@ -374,76 +230,111 @@ function selectSwap(index) {
     return;
   }
 
-  const requester = dutyData[selectedSwap].duty;
-  const approver = dutyData[index].duty;
+  const from = dutyData[selectedSwap].duty;
+  const to = dutyData[index].duty;
 
-  if (loggedInUser !== approver) {
-    alert("Approval শুধুমাত্র সংশ্লিষ্ট duty holder দিতে পারবে");
+  if (from !== currentUser.name) {
+    alert("শুধু নিজের duty থেকেই request করা যাবে");
+    rows.forEach(r => r.classList.remove("selected-row"));
+    selectedSwap = null;
+    return;
+  }
+
+  if (from === to) {
+    alert("একই ব্যক্তির সাথে swap করা যাবে না");
     rows.forEach(r => r.classList.remove("selected-row"));
     selectedSwap = null;
     return;
   }
 
   swapQueue.push({
-    requester,
-    approver,
+    id: Date.now().toString(),
+    from,
+    to,
     firstDate: dutyData[selectedSwap].date,
     secondDate: dutyData[index].date,
-    firstIndex: selectedSwap,
-    secondIndex: index,
-    status: "Pending"
+    status: "Pending Permission"
   });
-  renderSwapQueue();
 
   approvalHistory.push({
-    by: approver,
-    action: "requested",
-    date: dutyData[index].date,
-    detail: `${requester} ↔ ${approver}`,
+    by: from,
+    action: "requested permission from",
+    detail: `${from} -> ${to} for ${dutyData[selectedSwap].date} and ${dutyData[index].date}`,
     time: new Date().toLocaleTimeString()
   });
+
+  renderSwapQueue();
   renderHistory();
 
-  alert("Swap request created. এখন admin approve করবে।");
+  alert(`${to} এর অনুমতির জন্য request গেছে`);
   rows.forEach(r => r.classList.remove("selected-row"));
   selectedSwap = null;
 }
 
-function performSwap(firstIndex, secondIndex) {
-  const p1 = dutyData[firstIndex].duty;
-  const p2 = dutyData[secondIndex].duty;
+function approveSwap(id) {
+  if (!currentUser) return;
 
-  if (
-    (firstIndex > 0 && dutyData[firstIndex - 1].duty === p2) ||
-    (firstIndex < dutyData.length - 1 && dutyData[firstIndex + 1].duty === p2)
-  ) {
-    alert("এই Swap করলে পরপর একই ব্যক্তির ডিউটি হতে পারে।");
+  const request = swapQueue.find(item => item.id === id);
+  if (!request) return;
+
+  if (request.to !== currentUser.name) {
+    alert("শুধু যাকে permission চাওয়া হয়েছে, সেই approve করতে পারবে");
     return;
   }
 
-  if (
-    (secondIndex > 0 && dutyData[secondIndex - 1].duty === p1) ||
-    (secondIndex < dutyData.length - 1 && dutyData[secondIndex + 1].duty === p1)
-  ) {
-    alert("এই Swap করলে পরপর একই ব্যক্তির ডিউটি হতে পারে।");
-    return;
+  const i1 = dutyData.findIndex(item => item.date === request.firstDate);
+  const i2 = dutyData.findIndex(item => item.date === request.secondDate);
+
+  if (i1 !== -1 && i2 !== -1) {
+    [dutyData[i1].duty, dutyData[i2].duty] = [dutyData[i2].duty, dutyData[i1].duty];
+    localStorage.setItem("dutyData", JSON.stringify(dutyData));
   }
 
-  dutyData[firstIndex].duty = p2;
-  dutyData[secondIndex].duty = p1;
+  approvalHistory.push({
+    by: request.to,
+    action: "approved swap",
+    detail: `${request.to} approved ${request.from}'s request`,
+    time: new Date().toLocaleTimeString()
+  });
 
-  localStorage.setItem("dutyData", JSON.stringify(dutyData));
+  swapQueue = swapQueue.filter(item => item.id !== id);
   generateCalendar();
   renderSwapQueue();
+  renderHistory();
+}
+
+function rejectSwap(id) {
+  if (!currentUser) return;
+
+  const index = swapQueue.findIndex(item => item.id === id);
+  if (index === -1) return;
+
+  const request = swapQueue[index];
+  if (request.to !== currentUser.name) {
+    alert("শুধু যাকে permission চাওয়া হয়েছে, সেই reject করতে পারবে");
+    return;
+  }
+
+  approvalHistory.push({
+    by: request.to,
+    action: "rejected swap",
+    detail: `${request.to} rejected ${request.from}'s request`,
+    time: new Date().toLocaleTimeString()
+  });
+
+  swapQueue.splice(index, 1);
+  renderSwapQueue();
+  renderHistory();
 }
 
 const savedDuty = localStorage.getItem("dutyData");
-if (savedDuty) {
-  dutyData = JSON.parse(savedDuty);
-} else {
-  buildDutyData();
-}
+if (savedDuty) dutyData = JSON.parse(savedDuty);
+else buildDutyData();
+
+const savedUser = localStorage.getItem("currentUser");
+if (savedUser) currentUser = JSON.parse(savedUser);
 
 generateCalendar();
+updateUserUI();
 renderSwapQueue();
 renderHistory();
