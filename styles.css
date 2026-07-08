@@ -45,6 +45,8 @@ body {
   text-align: center;
   box-shadow: var(--shadow);
   margin-bottom: 16px;
+  top: 0;
+  z-index: 1020;
 }
 
 .app-header h1 {
@@ -161,6 +163,9 @@ body {
   border-color: var(--border) !important;
   font-weight: 700;
   white-space: nowrap;
+  position: sticky;
+  top: 0;
+  z-index: 5;
 }
 
 .table td,
