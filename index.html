@@ -25,9 +25,6 @@
 
   <section id="dutyPage">
     <section class="table-box mb-3">
-      <div class="d-flex justify-content-between align-items-center p-3 flex-wrap gap-2">
-        <button class="btn btn-outline-warning btn-sm" type="button" onclick="clearDutySwapSelection()">Clear Selection</button>
-      </div>
       <table class="table align-middle mb-0" id="dutyTable">
         <thead>
           <tr>
@@ -40,8 +37,67 @@
       </table>
     </section>
 
-    <div class="alert alert-secondary py-2 mb-0" id="swapStatusBox">
-      Swap status loading...
+    <div id="leaveFeatures" class="d-none">
+      <section class="accordion mb-3" id="leaveAccordion">
+        <div class="accordion-item app-card">
+          <h2 class="accordion-header" id="leaveFormHeading">
+            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#leaveFormCollapse" aria-expanded="false" aria-controls="leaveFormCollapse">
+              Leave System
+            </button>
+          </h2>
+          <div id="leaveFormCollapse" class="accordion-collapse collapse" aria-labelledby="leaveFormHeading" data-bs-parent="#leaveAccordion">
+            <div class="accordion-body">
+              <form id="leaveForm" onsubmit="event.preventDefault(); saveLeave();">
+                <div class="row g-2">
+                  <div class="col-md-4">
+                    <label class="form-label">নাম</label>
+                    <select id="leaveMember" class="form-select" required></select>
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label">শুরু তারিখ</label>
+                    <input type="date" id="leaveStart" class="form-control" required>
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label">শেষ তারিখ</label>
+                    <input type="date" id="leaveEnd" class="form-control" required>
+                  </div>
+                </div>
+                <div class="d-flex gap-2 flex-wrap mt-3">
+                  <button class="btn btn-danger" type="submit">Add Leave</button>
+                  <button class="btn btn-outline-secondary" type="button" onclick="resetLeaveForm()">Reset</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+
+        <div class="accordion-item app-card mt-3">
+          <h2 class="accordion-header" id="leaveListHeading">
+            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#leaveListCollapse" aria-expanded="false" aria-controls="leaveListCollapse">
+              Leave List
+            </button>
+          </h2>
+          <div id="leaveListCollapse" class="accordion-collapse collapse" aria-labelledby="leaveListHeading" data-bs-parent="#leaveAccordion">
+            <div class="accordion-body table-responsive">
+              <table class="table table-striped mb-0">
+                <thead>
+                  <tr>
+                    <th>নাম</th>
+                    <th>শুরু</th>
+                    <th>শেষ</th>
+                    <th id="leaveActionTh" class="d-none">Action</th>
+                  </tr>
+                </thead>
+                <tbody id="leaveBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div class="alert alert-secondary py-2 mb-3" id="swapStatusBox">
+        Swap status loading...
+      </div>
     </div>
   </section>
 
@@ -106,28 +162,26 @@
               </div>
             </div>
           </div>
+        </div>
+      </div>
 
-          <div class="accordion-item app-card mt-3">
-            <h2 class="accordion-header" id="calcHeading">
-              <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#calcCollapse" aria-expanded="false" aria-controls="calcCollapse">
-                বকেয়া পরিশোধের হিসাব
-              </button>
-            </h2>
-            <div id="calcCollapse" class="accordion-collapse collapse" aria-labelledby="calcHeading" data-bs-parent="#moneyAccordion">
-              <div class="accordion-body table-responsive">
-                <table class="table table-bordered mb-0">
-                  <thead>
-                    <tr>
-                      <th>দিবে</th>
-                      <th>পাবে</th>
-                      <th>Amount</th>
-                    </tr>
-                  </thead>
-                  <tbody id="settlementCalcBody"></tbody>
-                </table>
-                <div id="noRemainingBox" class="alert alert-info d-none mt-3 mb-0">No Remaining Settlement</div>
-              </div>
-            </div>
+      <div class="col-lg-12">
+        <div class="card app-card">
+          <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <h5 class="mb-0"><i class="bi bi-calculator me-2"></i>বকেয়া পরিশোধের হিসাব</h5>
+          </div>
+          <div class="card-body table-responsive">
+            <table class="table table-bordered mb-0">
+              <thead>
+                <tr>
+                  <th>দিবে</th>
+                  <th>পাবে</th>
+                  <th>Amount</th>
+                </tr>
+              </thead>
+              <tbody id="settlementCalcBody"></tbody>
+            </table>
+            <div id="noRemainingBox" class="alert alert-info d-none mt-3 mb-0">No Remaining Settlement</div>
           </div>
         </div>
       </div>
@@ -147,7 +201,7 @@
                   <th>নাম</th>
                   <th>পেল/দিল</th>
                   <th>Amount</th>
-                  <th>Action</th>
+                  <th id="historyActionTh" class="d-none">Action</th>
                 </tr>
               </thead>
               <tbody id="historyBody"></tbody>
