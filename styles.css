@@ -50,6 +50,19 @@ body {
 .app-header h1 { margin: 0; font-size: clamp(1.3rem, 3vw, 1.8rem); font-weight: 800; }
 .app-header p { margin: 6px 0 0; color: rgba(255, 255, 255, 0.88); font-size: 0.95rem; }
 
+.app-logo {
+  width: clamp(54px, 14vw, 76px);
+  height: clamp(54px, 14vw, 76px);
+  object-fit: contain;
+  background: transparent;
+  padding: 0;
+  border: 0;
+  box-shadow: none;
+  border-radius: 50%;
+  animation: logoFloat 3s ease-in-out infinite;
+  transform-origin: center;
+}
+
 .top-tabs { display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
 
 .tab-btn {
@@ -60,9 +73,60 @@ body {
   color: var(--text);
   font-weight: 700;
   box-shadow: var(--shadow-soft);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+  position: relative;
+  overflow: hidden;
 }
 
-.tab-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+.tab-btn:hover {
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.12);
+}
+
+.tab-btn:active { transform: scale(0.97); }
+
+.tab-btn.active {
+  background: var(--primary);
+  color: #fff;
+  border-color: var(--primary);
+  animation: tabPop 0.25s ease;
+}
+
+.tab-btn::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.18);
+  transform: translateX(-100%);
+  transition: transform 0.35s ease;
+}
+
+.tab-btn:hover::after { transform: translateX(0); }
+
+.page-shell {
+  position: relative;
+  min-height: 300px;
+}
+
+.page-panel {
+  transition: opacity 0.35s ease, transform 0.35s ease;
+  will-change: opacity, transform;
+}
+
+.page-panel.page-active {
+  animation: pageIn 0.35s ease;
+}
+
+.page-panel.page-leave {
+  opacity: 0;
+  transform: translateX(-12px) scale(0.99);
+}
+
+.page-panel.page-enter {
+  opacity: 0;
+  transform: translateX(12px) scale(0.99);
+}
+
 .d-none { display: none !important; }
 
 .stat-card, .app-card {
@@ -114,14 +178,35 @@ body {
   border-color: var(--border) !important;
   border-radius: 12px;
   min-height: 44px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
 }
+
 .form-control::placeholder { color: var(--muted); }
+
 .form-control:focus, .form-select:focus {
   border-color: var(--primary) !important;
   box-shadow: 0 0 0 0.2rem rgba(37, 99, 235, 0.12) !important;
+  transform: scale(1.01);
+}
+
+.btn {
+  border-radius: 12px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease, background 0.2s ease;
+}
+
+.btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 20px rgba(15, 23, 42, 0.12);
+}
+
+.btn:active { transform: scale(0.96); }
+
+.btn-outline-primary, .btn-outline-secondary, .btn-outline-danger, .btn-primary, .btn-success {
+  min-height: 42px;
 }
 
 .selected-row > td { background: #fef3c7 !important; }
+
 .today-row > td,
 tr.today-row > td {
   background: #fde047 !important;
@@ -144,14 +229,39 @@ tr.today-row > td {
 .amount-positive { color: var(--success); font-weight: 700; }
 .amount-negative { color: var(--danger); font-weight: 700; }
 
-.btn { border-radius: 12px; }
-.btn-outline-primary, .btn-outline-secondary, .btn-outline-danger, .btn-primary, .btn-success { min-height: 42px; }
 .toast { border-radius: 12px; box-shadow: var(--shadow-soft); }
+
+@keyframes tabPop {
+  0% { transform: scale(0.96); }
+  60% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+
+@keyframes pageIn {
+  from { opacity: 0; transform: translateY(12px) scale(0.99); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes logoFloat {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-3px) scale(1.04); }
+}
 
 @media (max-width: 576px) {
   .container { padding-left: 12px; padding-right: 12px; }
-  .app-header { padding: 16px 14px; border-radius: 16px; }
-  .app-header p { font-size: 0.9rem; }
+  .app-header {
+    padding: 14px 12px;
+    border-radius: 16px;
+  }
+  .app-header .d-flex {
+    gap: 10px !important;
+  }
+  .app-header h1 { font-size: 1.15rem; }
+  .app-header p { font-size: 0.82rem; }
+  .app-logo {
+    width: 48px;
+    height: 48px;
+  }
   .top-tabs { gap: 8px; }
   .tab-btn { width: 100%; justify-content: center; }
   .table-box, .app-card { border-radius: 14px; }
