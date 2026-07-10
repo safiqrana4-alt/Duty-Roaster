@@ -1,5 +1,5 @@
 const firebaseConfig = {
-  apiKey: "AIzaSyAf3hfQdBR3rRnS5787dFWbi8MTzmF6KEg",
+  apiKey: "AIzaSyAf3hfQdBR3RnS5787dFWbi8MTzmF6KEg",
   authDomain: "duty-roster-2026.firebaseapp.com",
   databaseURL: "https://duty-roster-2026-default-rtdb.asia-southeast1.firebasedatabase.app/",
   projectId: "duty-roster-2026",
@@ -85,7 +85,10 @@ function formatDate(date) {
   const d = String(date.getDate()).padStart(2, "0");
   return `${y}-${m}-${d}`;
 }
-function todayISO() { return new Date().toISOString().slice(0, 10); }
+function todayISO() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
 function inRange(dateStr, start, end) { return dateStr >= start && dateStr <= end; }
 
 function showToast(message, type = "primary") {
@@ -127,7 +130,7 @@ function buildDutyData() {
   const baseIndex = 1;
   let prevDuty = null;
 
-  for (let offset = -DUTY_PAST_DAYS; offset <= DUTY_FUTURE_DAYS; offset++) {
+  for (let offset = -7; offset <= 23; offset++) {
     const d = new Date(today);
     d.setDate(today.getDate() + offset);
     const dateStr = formatDate(d);
@@ -266,7 +269,10 @@ function generateCalendar() {
   tbody.innerHTML = "";
 
   const today = todayISO();
-  const rows = dutyData.slice().sort((a, b) => a.date.localeCompare(b.date)).slice(0, 30);
+  const sorted = dutyData.slice().sort((a, b) => a.date.localeCompare(b.date));
+  const todayIndex = sorted.findIndex(item => item.date === today);
+  const startIndex = todayIndex >= 0 ? Math.max(0, todayIndex - 7) : 0;
+  const rows = sorted.slice(startIndex, startIndex + 31);
 
   rows.forEach((item) => {
     const row = document.createElement("tr");
@@ -286,6 +292,11 @@ function generateCalendar() {
     row.innerHTML = `<td>${item.date}</td><td>${dayName}</td><td>${item.duty}</td>`;
     tbody.appendChild(row);
   });
+
+  if (todayIndex >= 0) {
+    const todayRow = tbody.querySelector(".today-row");
+    todayRow?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
 }
 
 function updateSwapStatus() {
