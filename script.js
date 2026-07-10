@@ -23,6 +23,7 @@ const holidays = {
 };
 
 let dutyData = [];
+let dutyBackup = [];
 let deposits = [];
 let settlements = [];
 let leaves = [];
@@ -33,6 +34,8 @@ let editingTx = null;
 let editingLeaveId = null;
 let currentTab = "duty";
 let midnightTimer = null;
+let swapPick1 = null;
+let swapPick2 = null;
 
 function dbRef(path) { return firebase.database().ref(path); }
 function saveToDB(path, value) { if (!dbReady) return Promise.resolve(); return dbRef(path).set(value); }
@@ -55,6 +58,10 @@ function setupRealtimeListeners() {
   dbRef("leaves").on("value", snap => { leaves = snap.val() ? Object.values(snap.val()) : []; renderAll(); });
   dbRef("swapAllowed").on("value", snap => {
     swapAllowed = !!snap.val();
+    if (!swapAllowed) {
+      swapPick1 = null;
+      swapPick2 = null;
+    }
     document.getElementById("leaveFeatures")?.classList.toggle("d-none", !swapAllowed);
     document.getElementById("leaveActionTh")?.classList.toggle("d-none", !swapAllowed);
     document.getElementById("historyActionTh")?.classList.toggle("d-none", !swapAllowed);
@@ -63,7 +70,11 @@ function setupRealtimeListeners() {
   });
   dbRef("dutyData").on("value", snap => {
     dutyData = snap.val() || [];
-    if (!dutyData.length) buildDutyData();
+    if (!dutyData.length) {
+      buildDutyData();
+    } else if (!dutyBackup.length) {
+      dutyBackup = dutyData.map(x => ({ ...x }));
+    }
     renderAll();
   });
 }
@@ -130,6 +141,7 @@ function buildDutyData() {
     prevDuty = duty;
   }
 
+  dutyBackup = dutyData.map(x => ({ ...x }));
   saveToDB("dutyData", dutyData);
 }
 
@@ -200,6 +212,54 @@ function resetLeaveForm() {
   editingLeaveId = null;
 }
 
+function clearDutySwapSelection() {
+  swapPick1 = null;
+  swapPick2 = null;
+  renderAll();
+}
+
+function selectDutySwap(dateStr) {
+  if (!swapAllowed) return;
+  if (swapPick1?.date === dateStr || swapPick2?.date === dateStr) {
+    clearDutySwapSelection();
+    showToast("Selection cleared", "warning");
+    return;
+  }
+  if (!swapPick1) {
+    swapPick1 = { date: dateStr };
+    showToast("প্রথম duty selected", "primary");
+  } else if (!swapPick2) {
+    swapPick2 = { date: dateStr };
+    showToast("দ্বিতীয় duty selected", "primary");
+  }
+  renderAll();
+}
+
+function performDutySwap() {
+  if (!swapPick1 || !swapPick2) return showToast("দুটি date select করুন", "danger");
+  const i1 = dutyData.findIndex(x => x.date === swapPick1.date);
+  const i2 = dutyData.findIndex(x => x.date === swapPick2.date);
+  if (i1 < 0 || i2 < 0) return showToast("দলিল পাওয়া যায়নি", "danger");
+  [dutyData[i1].duty, dutyData[i2].duty] = [dutyData[i2].duty, dutyData[i1].duty];
+  saveToDB("dutyData", dutyData).then(() => {
+    swapPick1 = null;
+    swapPick2 = null;
+    renderAll();
+    showToast("Duty swapped", "success");
+  });
+}
+
+function resetDutySchedule() {
+  if (!dutyBackup.length) return showToast("Backup not ready", "danger");
+  dutyData = dutyBackup.map(x => ({ ...x }));
+  swapPick1 = null;
+  swapPick2 = null;
+  saveToDB("dutyData", dutyData).then(() => {
+    renderAll();
+    showToast("Duty reset", "success");
+  });
+}
+
 function generateCalendar() {
   const tbody = document.getElementById("tableBody");
   if (!tbody) return;
@@ -213,13 +273,16 @@ function generateCalendar() {
     const d = new Date(item.date + "T00:00:00");
     const dayName = days[d.getDay()];
     const holiday = holidays[item.date];
+    const selected = swapPick1?.date === item.date || swapPick2?.date === item.date;
 
     row.className = [
       item.date === today ? "today-row" : "",
       holiday ? `holiday-row ${holiday.className}` : "",
-      dayName === "শুক্রবার" ? "friday-row" : ""
+      dayName === "শুক্রবার" ? "friday-row" : "",
+      selected ? "selected-row" : ""
     ].filter(Boolean).join(" ");
 
+    row.onclick = () => selectDutySwap(item.date);
     row.innerHTML = `<td>${item.date}</td><td>${dayName}</td><td>${item.duty}</td>`;
     tbody.appendChild(row);
   });
@@ -229,13 +292,24 @@ function updateSwapStatus() {
   const box = document.getElementById("swapStatusBox");
   if (!box) return;
   box.classList.remove("d-none");
+
   if (!swapAllowed) {
     box.className = "alert alert-danger py-2 mb-0";
     box.innerHTML = `<span>Swap disabled from Firebase</span>`;
     return;
   }
+
   box.className = "alert alert-success py-2 mb-0";
-  box.innerHTML = `<div class="d-flex justify-content-between align-items-center flex-wrap gap-2"><span>Swap enabled from Firebase</span><div class="d-flex gap-2"><button class="btn btn-sm btn-warning" type="button" onclick="resetDutySchedule()">Reset</button><button class="btn btn-sm btn-danger" type="button" onclick="toggleSwapAllowed()">Disable Swap</button></div></div>`;
+  box.innerHTML = `
+    <div class="d-flex flex-column gap-2">
+      <span>Swap enabled from Firebase</span>
+      <div class="d-flex gap-2 flex-wrap">
+        <button class="btn btn-sm btn-warning" type="button" onclick="performDutySwap()" ${(!swapPick1 || !swapPick2) ? "disabled" : ""}>Swap Now</button>
+        <button class="btn btn-sm btn-outline-danger" type="button" onclick="resetDutySchedule()">Reset</button>
+        <button class="btn btn-sm btn-danger" type="button" onclick="toggleSwapAllowed()">Disable Swap</button>
+      </div>
+    </div>
+  `;
 }
 
 function toggleSwapAllowed() {
@@ -290,7 +364,6 @@ function saveDeposit() {
   const member = document.getElementById("depositMember")?.value || "";
   const amount = Number(document.getElementById("depositAmount")?.value || 0);
   if (!member || amount <= 0) return showToast("সঠিক জমা দিন", "danger");
-
   const data = { id: editingTx?.type === "deposit" ? editingTx.id : crypto.randomUUID(), member, amount, date: editingTx?.date || todayISO() };
   if (editingTx?.type === "deposit") {
     const idx = deposits.findIndex(x => x.id === editingTx.id);
@@ -298,7 +371,6 @@ function saveDeposit() {
   } else {
     deposits.unshift(data);
   }
-
   saveToDB("deposits", deposits).then(() => {
     editingTx = null;
     resetDepositForm();
@@ -312,7 +384,6 @@ function saveSettlement() {
   const to = document.getElementById("settlementTo")?.value || "";
   const amount = Number(document.getElementById("settlementAmount")?.value || 0);
   if (!from || !to || from === to || amount <= 0) return showToast("সঠিক settlement দিন", "danger");
-
   const data = { id: editingTx?.type === "settlement" ? editingTx.id : crypto.randomUUID(), from, to, amount, date: editingTx?.date || todayISO() };
   if (editingTx?.type === "settlement") {
     const idx = settlements.findIndex(x => x.id === editingTx.id);
@@ -320,7 +391,6 @@ function saveSettlement() {
   } else {
     settlements.unshift(data);
   }
-
   saveToDB("settlements", settlements).then(() => {
     editingTx = null;
     resetSettlementForm();
@@ -364,14 +434,12 @@ function renderDutyPage() {
 function renderMoneyPage() {
   populateMemberSelects();
   const remaining = getBaseSettlement();
-
   const calcBody = document.getElementById("settlementCalcBody");
   if (calcBody) {
     calcBody.innerHTML = remaining.length
       ? remaining.map(x => `<tr><td>${x.from}</td><td>${x.to}</td><td>৳ ${money(x.amount)}</td></tr>`).join("")
       : `<tr><td colspan="3" class="text-center">No Remaining Settlement</td></tr>`;
   }
-
   const noRemaining = document.getElementById("noRemainingBox");
   if (noRemaining) noRemaining.classList.toggle("d-none", remaining.length !== 0);
 
