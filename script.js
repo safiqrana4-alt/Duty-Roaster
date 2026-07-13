@@ -70,11 +70,8 @@ function setupRealtimeListeners() {
   });
   dbRef("dutyData").on("value", snap => {
     dutyData = snap.val() || [];
-    if (!dutyData.length) {
-      buildDutyData();
-    } else if (!dutyBackup.length) {
-      dutyBackup = dutyData.map(x => ({ ...x }));
-    }
+    if (!dutyData.length) buildDutyData();
+    else if (!dutyBackup.length) dutyBackup = dutyData.map(x => ({ ...x }));
     renderAll();
   });
 }
@@ -126,11 +123,11 @@ function buildDutyData() {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  const base = new Date("2026-07-07T00:00:00");
+  const base = new Date("2026-07-06T00:00:00");
   const baseIndex = 1;
   let prevDuty = null;
 
-  for (let offset = -7; offset <= 23; offset++) {
+  for (let offset = -90; offset <= 180; offset++) {
     const d = new Date(today);
     d.setDate(today.getDate() + offset);
     const dateStr = formatDate(d);
@@ -263,40 +260,54 @@ function resetDutySchedule() {
   });
 }
 
+function getDutyForDate(dateStr) {
+  const item = dutyData.find(x => x.date === dateStr);
+  if (item) return item.duty;
+  const d = new Date(dateStr + "T00:00:00");
+  if (isNaN(d.getTime())) return "-";
+  const base = new Date("2026-07-06T00:00:00");
+  const baseIndex = 1;
+  const daysFromBase = Math.round((d.getTime() - base.getTime()) / 86400000);
+  const dutyIndex = (baseIndex + daysFromBase) % staff.length;
+  const normalizedIndex = (dutyIndex + staff.length) % staff.length;
+  return staff[normalizedIndex] || "-";
+}
+
 function generateCalendar() {
   const tbody = document.getElementById("tableBody");
   if (!tbody) return;
   tbody.innerHTML = "";
 
-  const today = todayISO();
-  const sorted = dutyData.slice().sort((a, b) => a.date.localeCompare(b.date));
-  const todayIndex = sorted.findIndex(item => item.date === today);
-  const startIndex = todayIndex >= 0 ? Math.max(0, todayIndex - 7) : 0;
-  const rows = sorted.slice(startIndex, startIndex + 31);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const tomorrow = new Date(today);
+  tomorrow.setDate(today.getDate() + 1);
+  const tomorrowStr = formatDate(tomorrow);
 
-  rows.forEach((item) => {
-    const row = document.createElement("tr");
-    const d = new Date(item.date + "T00:00:00");
+  for (let offset = -DUTY_PAST_DAYS; offset <= DUTY_FUTURE_DAYS; offset++) {
+    const d = new Date(today);
+    d.setDate(today.getDate() + offset);
+    const dateStr = formatDate(d);
     const dayName = days[d.getDay()];
-    const holiday = holidays[item.date];
-    const selected = swapPick1?.date === item.date || swapPick2?.date === item.date;
+    const holiday = holidays[dateStr];
+    const dutyName = getDutyForDate(dateStr);
+    const selected = swapPick1?.date === dateStr || swapPick2?.date === dateStr;
 
+    const row = document.createElement("tr");
     row.className = [
-      item.date === today ? "today-row" : "",
+      offset === 1 ? "tomorrow-row" : "",
+      offset === 0 ? "today-row" : "",
       holiday ? `holiday-row ${holiday.className}` : "",
       dayName === "শুক্রবার" ? "friday-row" : "",
       selected ? "selected-row" : ""
     ].filter(Boolean).join(" ");
 
-    row.onclick = () => selectDutySwap(item.date);
-    row.innerHTML = `<td>${item.date}</td><td>${dayName}</td><td>${item.duty}</td>`;
+    row.onclick = () => selectDutySwap(dateStr);
+    row.innerHTML = `<td>${dateStr}</td><td>${dayName}</td><td>${dutyName}</td>`;
     tbody.appendChild(row);
-  });
-
-  if (todayIndex >= 0) {
-    const todayRow = tbody.querySelector(".today-row");
-    todayRow?.scrollIntoView({ behavior: "smooth", block: "center" });
   }
+
+  tbody.querySelector(".today-row")?.scrollIntoView({ behavior: "smooth", block: "center" });
 }
 
 function updateSwapStatus() {
