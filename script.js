@@ -118,7 +118,13 @@ function rebuildIfRequired(force = false) {
     dutyData.some(item => item.duty === member)
   );
 
-  if (force || !dutyData.length || !everyMemberHasDuty) {
+  const today = todayISO();
+  const expectedStart = formatDate(addDays(new Date(`${today}T00:00:00`), -DUTY_PAST_DAYS));
+  const expectedEnd = formatDate(addDays(new Date(`${today}T00:00:00`), DUTY_FUTURE_DAYS));
+  const hasCurrentWindow = dutyData.some(item => item.date === expectedStart) &&
+    dutyData.some(item => item.date === expectedEnd);
+
+  if (force || !dutyData.length || !everyMemberHasDuty || !hasCurrentWindow) {
     buildDutyData();
   } else if (!dutyBackup.length) {
     dutyBackup = dutyData.map(item => ({ ...item }));
@@ -130,6 +136,12 @@ function formatDate(date) {
   const m = String(date.getMonth() + 1).padStart(2, "0");
   const d = String(date.getDate()).padStart(2, "0");
   return `${y}-${m}-${d}`;
+}
+
+function addDays(date, amount) {
+  const result = new Date(date);
+  result.setDate(result.getDate() + amount);
+  return result;
 }
 
 function todayISO() {
