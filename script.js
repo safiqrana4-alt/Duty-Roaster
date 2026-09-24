@@ -725,8 +725,7 @@ function generateCalendar() {
     row.innerHTML = `
       <td>${item.date}</td>
       <td>${dayName}</td>
-      <td>${shift} শিফট</td>
-      <td>${item.duty}</td>
+      <td>${shift} ${item.duty}</td>
     `;
 
     tbody.appendChild(row);
