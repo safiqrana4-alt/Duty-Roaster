@@ -12,7 +12,10 @@ const defaultMembers = ["শফিক", "হাসান", "নেওয়াজ"]
 const days = ["রবিবার", "সোমবার", "মঙ্গলবার", "বুধবার", "বৃহস্পতিবার", "শুক্রবার", "শনিবার"];
 const STORAGE_KEYS = { theme: "es_theme" };
 const DUTY_PAST_DAYS = 7;
-const DUTY_FUTURE_DAYS = 23;
+const DUTY_FUTURE_DAYS = 52;
+const DUTY_DISPLAY_DAYS = 90;
+const ROSTER_YEAR = 2026;
+const DUTY_RULE_VERSION = 6;
 
 const holidays = {
   "2026-07-04": { className: "holiday-national", label: "জাতীয় ছুটি" },
@@ -32,6 +35,7 @@ let swapAllowed = false;
 let editingTx = null;
 let editingLeaveId = null;
 let currentTab = "duty";
+let rosterVersion = 0;
 let midnightTimer = null;
 let swapPick1 = null;
 let swapPick2 = null;
@@ -39,7 +43,8 @@ let swapPick2 = null;
 const loaded = {
   members: false,
   leaves: false,
-  dutyData: false
+  dutyData: false,
+  rosterVersion: false
 };
 
 function dbRef(path) {
@@ -109,22 +114,117 @@ function setupRealtimeListeners() {
     rebuildIfRequired();
     renderAll();
   });
+
+  dbRef("rosterVersion").on("value", snap => {
+    rosterVersion = Number(snap.val() || 0);
+    loaded.rosterVersion = true;
+    rebuildIfRequired();
+    renderAll();
+  });
+}
+
+function getShiftAnchor() {
+  // 2026-01-03 শনিবার থেকে A, C, B শিফটের স্থির রোটেশন শুরু।
+  return new Date(`${ROSTER_YEAR}-01-03T00:00:00`);
+}
+
+function getCurrentShiftWeekStart() {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  // শনিবার–শুক্রবার সপ্তাহ; বর্তমান সপ্তাহকে A শিফট ধরা হয়েছে।
+  today.setDate(today.getDate() - ((today.getDay() + 1) % 7));
+  return today;
+}
+
+function getRosterShift(dateStr) {
+  const date = new Date(`${dateStr}T00:00:00`);
+  const currentWeekStart = getCurrentShiftWeekStart();
+  const daysFromCurrentWeek = Math.floor(
+    (date.getTime() - currentWeekStart.getTime()) / 86400000
+  );
+  const weekOffset = Math.floor(daysFromCurrentWeek / 7);
+  const shiftIndex = ((weekOffset % 3) + 3) % 3;
+
+  // বর্তমান সপ্তাহ A, পরের সপ্তাহ C, তার পরের সপ্তাহ B।
+  return ["A", "C", "B"][shiftIndex];
+}
+
+function getShiftWeekKey(date) {
+  const anchor = getShiftAnchor();
+  const daysFromShiftStart = Math.floor(
+    (date.getTime() - anchor.getTime()) / 86400000
+  );
+
+  return Math.floor(daysFromShiftStart / 7);
+}
+
+function hasValidDutyRules() {
+  const sorted = dutyData.slice().sort((a, b) =>
+    a.date.localeCompare(b.date)
+  );
+
+  if (hasConsecutiveDutyConflict(sorted)) return false;
+
+  for (let i = 1; i < sorted.length; i++) {
+    if (sorted[i].duty === sorted[i - 1].duty) return false;
+  }
+
+  const weeklyDutyCounts = {};
+  for (const item of sorted) {
+    const date = new Date(`${item.date}T00:00:00`);
+    const weekKey = getShiftWeekKey(date);
+    weeklyDutyCounts[weekKey] ||= { dates: [], counts: {} };
+    weeklyDutyCounts[weekKey].dates.push(item.date);
+    weeklyDutyCounts[weekKey].counts[item.duty] =
+      (weeklyDutyCounts[weekKey].counts[item.duty] || 0) + 1;
+  }
+
+  // A complete shift week should give every available member at least two days.
+  for (const week of Object.values(weeklyDutyCounts)) {
+    if (week.dates.length < 7) continue;
+
+    const everyoneAvailable = members.every(member =>
+      week.dates.every(date => !getLeaveByDateAndMember(date, member))
+    );
+
+    if (everyoneAvailable && members.some(member =>
+      (week.counts[member] || 0) < 2
+    )) return false;
+  }
+
+  const previousFridayByShift = {};
+  let previousFridayDuty = null;
+  for (const item of sorted) {
+    const date = new Date(`${item.date}T00:00:00`);
+    if (date.getDay() !== 5) continue;
+
+    const shift = getRosterShift(item.date);
+    // পরপর দুই শুক্রবারে একই ব্যক্তি কোনো শিফটেই ডিউটি পাবেন না।
+    if (item.duty === previousFridayDuty) return false;
+    // একই শিফটে ফিরে এলে আগের সেই শিফটের ব্যক্তিও পুনরায় পাবেন না।
+    if (previousFridayByShift[shift] === item.duty) return false;
+
+    previousFridayByShift[shift] = item.duty;
+    previousFridayDuty = item.duty;
+  }
+
+  return true;
 }
 
 function rebuildIfRequired(force = false) {
-  if (!loaded.members || !loaded.leaves || !loaded.dutyData) return;
+  if (!loaded.members || !loaded.leaves || !loaded.dutyData || !loaded.rosterVersion) return;
 
   const everyMemberHasDuty = members.every(member =>
     dutyData.some(item => item.duty === member)
   );
 
-  const today = todayISO();
-  const expectedStart = formatDate(addDays(new Date(`${today}T00:00:00`), -DUTY_PAST_DAYS));
-  const expectedEnd = formatDate(addDays(new Date(`${today}T00:00:00`), DUTY_FUTURE_DAYS));
+  const expectedStart = `${ROSTER_YEAR}-01-01`;
+  const expectedEnd = `${ROSTER_YEAR}-12-31`;
   const hasCurrentWindow = dutyData.some(item => item.date === expectedStart) &&
     dutyData.some(item => item.date === expectedEnd);
 
-  if (force || !dutyData.length || !everyMemberHasDuty || !hasCurrentWindow) {
+  if (force || rosterVersion < DUTY_RULE_VERSION || !dutyData.length ||
+      !everyMemberHasDuty || !hasCurrentWindow || !hasValidDutyRules()) {
     buildDutyData();
   } else if (!dutyBackup.length) {
     dutyBackup = dutyData.map(item => ({ ...item }));
@@ -185,8 +285,29 @@ function getAvailableMembers(dateStr) {
   );
 }
 
-function getNextAvailableMember(dateStr, startIndex, previousDuty) {
+function hasConsecutiveDutyConflict(schedule) {
+  const sorted = schedule.slice().sort((a, b) =>
+    a.date.localeCompare(b.date)
+  );
+
+  for (let i = 1; i < sorted.length; i++) {
+    const previousDate = new Date(`${sorted[i - 1].date}T00:00:00`);
+    const currentDate = new Date(`${sorted[i].date}T00:00:00`);
+    const dayDifference = Math.round(
+      (currentDate.getTime() - previousDate.getTime()) / 86400000
+    );
+
+    if (dayDifference === 1 && sorted[i].duty === sorted[i - 1].duty) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function getNextAvailableMember(dateStr, startIndex, previousDuty, excluded = []) {
   const available = getAvailableMembers(dateStr);
+  const allowed = available.filter(member => !excluded.includes(member));
 
   if (!available.length) {
     return members[startIndex % members.length];
@@ -195,53 +316,216 @@ function getNextAvailableMember(dateStr, startIndex, previousDuty) {
   for (let i = 0; i < members.length; i++) {
     const candidate = members[(startIndex + i) % members.length];
 
-    if (available.includes(candidate) && candidate !== previousDuty) {
+    if (allowed.includes(candidate) && candidate !== previousDuty) {
       return candidate;
     }
   }
 
-  return available.find(name => name !== previousDuty) || available[0];
+  return allowed.find(name => name !== previousDuty) ||
+    available.find(name => name !== previousDuty) ||
+    available[0];
+}
+
+function getFridayNumber(date) {
+  return Math.ceil(date.getDate() / 7);
+}
+
+function getFridayRotationIndex(date) {
+  // ১ম শুক্রবার ১ম সদস্য, ২য় শুক্রবার ২য় সদস্য,
+  // ৩য় শুক্রবার ৩য় সদস্য—তারপর একই রোটেশন।
+  const firstFriday = new Date(`${ROSTER_YEAR}-01-02T00:00:00`);
+  const fridayNumber = Math.floor(
+    (date.getTime() - firstFriday.getTime()) / (7 * 86400000)
+  );
+  return ((fridayNumber % members.length) + members.length) % members.length;
+}
+
+function getFridayRotationMember(date) {
+  if (!members.length) return null;
+  return members[getFridayRotationIndex(date)];
+}
+
+function getFridayFallback(dateStr, previousDuty, rotationMember, blocked = []) {
+  const available = getAvailableMembers(dateStr);
+  const unavailable = new Set([
+    previousDuty,
+    rotationMember,
+    ...blocked
+  ]);
+
+  return available.find(member => !unavailable.has(member)) ||
+    available.find(member => member !== previousDuty) ||
+    available[0];
+}
+
+function getPreviousMonthFridayKey(date, fridayNumber) {
+  const previousMonth = new Date(date.getFullYear(), date.getMonth() - 1, 1);
+  return `${previousMonth.getFullYear()}-${String(previousMonth.getMonth() + 1).padStart(2, "0")}-${fridayNumber}`;
+}
+
+function getBalancedDutyMember(dateStr, startIndex, previousDuty, excluded, counts, weeklyCounts = {}) {
+  const available = getAvailableMembers(dateStr);
+  const allowed = available.filter(member => !excluded.includes(member));
+  const candidates = allowed.length ? allowed : available;
+
+  if (!candidates.length) {
+    return members[startIndex % members.length];
+  }
+
+  // First prefer someone who did not work the previous day. Among them,
+  // choose the person with the fewest duties in the displayed period.
+  const withoutConsecutiveDuty = candidates.filter(
+    member => member !== previousDuty
+  );
+  const pool = withoutConsecutiveDuty.length
+    ? withoutConsecutiveDuty
+    : candidates;
+
+  // প্রতি শিফট/সপ্তাহে কম ডিউটি করা সদস্যকে আগে নির্বাচন করা হয়।
+  return pool.slice().sort((a, b) => {
+    const weeklyDifference = (weeklyCounts[a] || 0) - (weeklyCounts[b] || 0);
+    if (weeklyDifference !== 0) return weeklyDifference;
+
+    const countDifference = (counts[a] || 0) - (counts[b] || 0);
+    if (countDifference !== 0) return countDifference;
+
+    const aIndex = members.indexOf(a);
+    const bIndex = members.indexOf(b);
+    const aDistance = (aIndex - startIndex + members.length) % members.length;
+    const bDistance = (bIndex - startIndex + members.length) % members.length;
+    return aDistance - bDistance;
+  })[0];
+}
+
+function getShiftForDate(date, weekStart) {
+  const daysFromWeekStart = Math.floor(
+    (date.getTime() - weekStart.getTime()) / 86400000
+  );
+  const weekNumber = Math.floor(daysFromWeekStart / 7);
+  // বর্তমান সপ্তাহ A, পরের সপ্তাহ C, তার পরের সপ্তাহ B।
+  return ["A", "C", "B"][((weekNumber % 3) + 3) % 3];
 }
 
 function buildDutyData() {
   if (!members.length) return;
 
-  dutyData = [];
   const today = new Date();
   today.setHours(0, 0, 0, 0);
+
+  const visibleStart = `${ROSTER_YEAR}-01-01`;
+  const endDate = new Date(`${ROSTER_YEAR}-12-31T00:00:00`);
+  const visibleEnd = `${ROSTER_YEAR}-12-31`;
+  const planningStart = addDays(new Date(`${visibleStart}T00:00:00`), -35);
+  // বর্তমানে A শিফট চলছে; আজকের সপ্তাহকে A ধরে আগের/পরের সপ্তাহ নির্ধারণ হবে।
+  const todayWeekStart = new Date(today);
+  todayWeekStart.setDate(todayWeekStart.getDate() - ((today.getDay() + 1) % 7));
+  const currentWeekStart = addDays(todayWeekStart, -7 * 0);
 
   const base = new Date("2026-07-07T00:00:00");
   const baseIndex = members.indexOf("হাসান") >= 0
     ? members.indexOf("হাসান")
     : 0;
-
+  const dutyCounts = Object.fromEntries(members.map(member => [member, 0]));
+  const fridayCounts = Object.fromEntries(members.map(member => [member, 0]));
+  const lastFridayByShift = {};
+  const completeSchedule = [];
   let previousDuty = null;
+  let previousFridayDuty = null;
+  const previousFridayByShift = {};
+  let currentShiftKey = null;
+  let weeklyCounts = Object.fromEntries(members.map(member => [member, 0]));
+  let shiftWeekDates = [];
 
-  for (let offset = -DUTY_PAST_DAYS; offset <= DUTY_FUTURE_DAYS; offset++) {
-    const date = new Date(today);
-    date.setDate(today.getDate() + offset);
-
+  // Plan earlier dates to preserve the no-consecutive-duty and Friday rules.
+  for (let date = new Date(planningStart); date <= endDate; date = addDays(date, 1)) {
     const dateStr = formatDate(date);
     const daysFromBase = Math.round(
       (date.getTime() - base.getTime()) / 86400000
     );
-
     const dutyIndex =
       ((baseIndex + daysFromBase) % members.length + members.length) %
       members.length;
+    const shift = getShiftForDate(date, currentWeekStart);
+    const shiftKey = `${getShiftWeekKey(date)}${shift}`;
 
-    const duty = getNextAvailableMember(
+    if (shiftKey !== currentShiftKey) {
+      currentShiftKey = shiftKey;
+      weeklyCounts = Object.fromEntries(members.map(member => [member, 0]));
+      shiftWeekDates = [];
+    }
+
+    shiftWeekDates.push(dateStr);
+    let excluded = [];
+    let fridayDutyMember = null;
+
+    // During a complete seven-day shift week, fill members below two duties first.
+    const available = getAvailableMembers(dateStr);
+    const minimumDutyMembers = available.filter(member =>
+      (weeklyCounts[member] || 0) < 2
+    );
+    if (minimumDutyMembers.length) {
+      excluded = members.filter(member => !minimumDutyMembers.includes(member));
+    }
+
+    if (date.getDay() === 5) {
+      // শুক্রবারে ১ম, ২য়, ৩য় সদস্য—তারপর একই রোটেশন।
+      // নির্ধারিত সদস্য ছুটিতে না থাকলে অন্য কোনো নিয়মে তাকে বদলানো যাবে না।
+      const rotationMember = getFridayRotationMember(date);
+      const available = getAvailableMembers(dateStr);
+
+      if (rotationMember && available.includes(rotationMember) &&
+          rotationMember !== previousDuty) {
+        // নির্দিষ্ট শুক্রবারের সদস্যকে রাখা হবে, যদি আগের দিনের সঙ্গে সংঘাত না হয়।
+        fridayDutyMember = rotationMember;
+      } else if (available.length) {
+        // সংঘাত হলে rotation-এর বাইরে অন্য সদস্য অটো নির্বাচন হবে।
+        fridayDutyMember = getFridayFallback(
+          dateStr,
+          previousDuty,
+          rotationMember,
+          [previousFridayDuty, previousFridayByShift[shift]]
+        );
+      }
+
+      if (fridayDutyMember) {
+        excluded = members.filter(member => member !== fridayDutyMember);
+      }
+    }
+
+    const duty = fridayDutyMember || getBalancedDutyMember(
       dateStr,
       dutyIndex,
-      previousDuty
+      previousDuty,
+      excluded,
+      dutyCounts,
+      weeklyCounts
     );
 
-    dutyData.push({ date: dateStr, duty });
+    completeSchedule.push({ date: dateStr, duty });
+    weeklyCounts[duty] = (weeklyCounts[duty] || 0) + 1;
+
+    if (inRange(dateStr, visibleStart, visibleEnd)) {
+      dutyCounts[duty] = (dutyCounts[duty] || 0) + 1;
+      if (date.getDay() === 5) {
+        fridayCounts[duty] = (fridayCounts[duty] || 0) + 1;
+      }
+    }
+
+    if (date.getDay() === 5) {
+      lastFridayByShift[shift] = duty;
+      previousFridayByShift[shift] = duty;
+      previousFridayDuty = duty;
+    }
     previousDuty = duty;
   }
 
+  dutyData = completeSchedule.filter(item =>
+    inRange(item.date, visibleStart, visibleEnd)
+  );
+
   dutyBackup = dutyData.map(item => ({ ...item }));
   saveToDB("dutyData", dutyData);
+  saveToDB("rosterVersion", DUTY_RULE_VERSION);
 }
 
 function updateTabButton() {
@@ -369,6 +653,12 @@ function performDutySwap() {
   [dutyData[first].duty, dutyData[second].duty] =
     [dutyData[second].duty, dutyData[first].duty];
 
+  if (hasConsecutiveDutyConflict(dutyData)) {
+    [dutyData[first].duty, dutyData[second].duty] =
+      [dutyData[second].duty, dutyData[first].duty];
+    return showToast("পরপর দুই দিনে একই ব্যক্তি দেওয়া যাবে না", "danger");
+  }
+
   saveToDB("dutyData", dutyData).then(() => {
     swapPick1 = null;
     swapPick2 = null;
@@ -405,7 +695,7 @@ function generateCalendar() {
 
   const todayIndex = sorted.findIndex(item => item.date === today);
   const startIndex = todayIndex >= 0 ? Math.max(0, todayIndex - 7) : 0;
-  const rows = sorted.slice(startIndex, startIndex + 31);
+  const rows = sorted.slice(startIndex, startIndex + DUTY_DISPLAY_DAYS);
 
   rows.forEach(item => {
     const date = new Date(`${item.date}T00:00:00`);
@@ -424,9 +714,18 @@ function generateCalendar() {
     ].filter(Boolean).join(" ");
 
     row.onclick = () => selectDutySwap(item.date);
+    // শনিবার–শুক্রবার এক সপ্তাহ। বর্তমান সপ্তাহ A, পরের সপ্তাহ B, তারপর C।
+    const shiftStart = new Date(`${today}T00:00:00`);
+    shiftStart.setDate(shiftStart.getDate() - shiftStart.getDay() - 1);
+    const daysFromShiftStart = Math.round(
+      (date.getTime() - shiftStart.getTime()) / 86400000
+    );
+          const shift = getRosterShift(item.date);
+
     row.innerHTML = `
       <td>${item.date}</td>
       <td>${dayName}</td>
+      <td>${shift} শিফট</td>
       <td>${item.duty}</td>
     `;
 
