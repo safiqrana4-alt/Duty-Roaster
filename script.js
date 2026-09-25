@@ -15,7 +15,7 @@ const DUTY_PAST_DAYS = 7;
 const DUTY_FUTURE_DAYS = 52;
 const DUTY_DISPLAY_DAYS = 90;
 const ROSTER_YEAR = 2026;
-const DUTY_RULE_VERSION = 6;
+const DUTY_RULE_VERSION = 8;
 
 const holidays = {
   "2026-07-04": { className: "holiday-national", label: "জাতীয় ছুটি" },
@@ -128,25 +128,17 @@ function getShiftAnchor() {
   return new Date(`${ROSTER_YEAR}-01-03T00:00:00`);
 }
 
-function getCurrentShiftWeekStart() {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  // শনিবার–শুক্রবার সপ্তাহ; বর্তমান সপ্তাহকে A শিফট ধরা হয়েছে।
-  today.setDate(today.getDate() - ((today.getDay() + 1) % 7));
-  return today;
-}
-
 function getRosterShift(dateStr) {
   const date = new Date(`${dateStr}T00:00:00`);
-  const currentWeekStart = getCurrentShiftWeekStart();
-  const daysFromCurrentWeek = Math.floor(
-    (date.getTime() - currentWeekStart.getTime()) / 86400000
-  );
-  const weekOffset = Math.floor(daysFromCurrentWeek / 7);
-  const shiftIndex = ((weekOffset % 3) + 3) % 3;
+  date.setDate(date.getDate() - ((date.getDay() + 1) % 7));
 
-  // বর্তমান সপ্তাহ A, পরের সপ্তাহ C, তার পরের সপ্তাহ B।
-  return ["A", "C", "B"][shiftIndex];
+  // 2026-09-26 থেকে শনিবার–শুক্রবারের শিফট রোটেশন C, B, A।
+  const anchor = new Date("2026-09-26T00:00:00");
+  const weekOffset = Math.round(
+    (date.getTime() - anchor.getTime()) / 86400000 / 7
+  );
+  const shiftIndex = ((weekOffset % 3) + 3) % 3;
+  return ["C", "B", "A"][shiftIndex];
 }
 
 function getShiftWeekKey(date) {
@@ -345,16 +337,26 @@ function getFridayRotationMember(date) {
   return members[getFridayRotationIndex(date)];
 }
 
-function getFridayFallback(dateStr, previousDuty, rotationMember, blocked = []) {
+function getFridayFallback(
+  dateStr,
+  previousDuty,
+  rotationMember,
+  blocked = [],
+  sameShiftPrevious = null
+) {
   const available = getAvailableMembers(dateStr);
   const unavailable = new Set([
     previousDuty,
     rotationMember,
-    ...blocked
+    ...blocked,
+    sameShiftPrevious
   ]);
 
   return available.find(member => !unavailable.has(member)) ||
-    available.find(member => member !== previousDuty) ||
+    available.find(member =>
+      member !== previousDuty && member !== sameShiftPrevious
+    ) ||
+    available.find(member => member !== sameShiftPrevious) ||
     available[0];
 }
 
@@ -372,8 +374,8 @@ function getBalancedDutyMember(dateStr, startIndex, previousDuty, excluded, coun
     return members[startIndex % members.length];
   }
 
-  // First prefer someone who did not work the previous day. Among them,
-  // choose the person with the fewest duties in the displayed period.
+  // First avoid consecutive duties, then balance total duties across the year.
+  // Weekly counts break ties so complete shift weeks remain balanced.
   const withoutConsecutiveDuty = candidates.filter(
     member => member !== previousDuty
   );
@@ -381,13 +383,13 @@ function getBalancedDutyMember(dateStr, startIndex, previousDuty, excluded, coun
     ? withoutConsecutiveDuty
     : candidates;
 
-  // প্রতি শিফট/সপ্তাহে কম ডিউটি করা সদস্যকে আগে নির্বাচন করা হয়।
+  // বছরের মোট ডিউটি কম এমন সদস্যকে আগে নির্বাচন করা হয়।
   return pool.slice().sort((a, b) => {
-    const weeklyDifference = (weeklyCounts[a] || 0) - (weeklyCounts[b] || 0);
-    if (weeklyDifference !== 0) return weeklyDifference;
-
     const countDifference = (counts[a] || 0) - (counts[b] || 0);
     if (countDifference !== 0) return countDifference;
+
+    const weeklyDifference = (weeklyCounts[a] || 0) - (weeklyCounts[b] || 0);
+    if (weeklyDifference !== 0) return weeklyDifference;
 
     const aIndex = members.indexOf(a);
     const bIndex = members.indexOf(b);
@@ -397,13 +399,8 @@ function getBalancedDutyMember(dateStr, startIndex, previousDuty, excluded, coun
   })[0];
 }
 
-function getShiftForDate(date, weekStart) {
-  const daysFromWeekStart = Math.floor(
-    (date.getTime() - weekStart.getTime()) / 86400000
-  );
-  const weekNumber = Math.floor(daysFromWeekStart / 7);
-  // বর্তমান সপ্তাহ A, পরের সপ্তাহ C, তার পরের সপ্তাহ B।
-  return ["A", "C", "B"][((weekNumber % 3) + 3) % 3];
+function getShiftForDate(date) {
+  return getRosterShift(formatDate(date));
 }
 
 function buildDutyData() {
@@ -416,10 +413,6 @@ function buildDutyData() {
   const endDate = new Date(`${ROSTER_YEAR}-12-31T00:00:00`);
   const visibleEnd = `${ROSTER_YEAR}-12-31`;
   const planningStart = addDays(new Date(`${visibleStart}T00:00:00`), -35);
-  // বর্তমানে A শিফট চলছে; আজকের সপ্তাহকে A ধরে আগের/পরের সপ্তাহ নির্ধারণ হবে।
-  const todayWeekStart = new Date(today);
-  todayWeekStart.setDate(todayWeekStart.getDate() - ((today.getDay() + 1) % 7));
-  const currentWeekStart = addDays(todayWeekStart, -7 * 0);
 
   const base = new Date("2026-07-07T00:00:00");
   const baseIndex = members.indexOf("হাসান") >= 0
@@ -445,7 +438,7 @@ function buildDutyData() {
     const dutyIndex =
       ((baseIndex + daysFromBase) % members.length + members.length) %
       members.length;
-    const shift = getShiftForDate(date, currentWeekStart);
+    const shift = getShiftForDate(date);
     const shiftKey = `${getShiftWeekKey(date)}${shift}`;
 
     if (shiftKey !== currentShiftKey) {
@@ -474,8 +467,9 @@ function buildDutyData() {
       const available = getAvailableMembers(dateStr);
 
       if (rotationMember && available.includes(rotationMember) &&
-          rotationMember !== previousDuty) {
-        // নির্দিষ্ট শুক্রবারের সদস্যকে রাখা হবে, যদি আগের দিনের সঙ্গে সংঘাত না হয়।
+          rotationMember !== previousDuty &&
+          rotationMember !== previousFridayByShift[shift]) {
+        // আগের একই শিফটের শুক্রবারে দায়িত্বে থাকলে নির্দিষ্ট সদস্যকে এড়িয়ে চলুন।
         fridayDutyMember = rotationMember;
       } else if (available.length) {
         // সংঘাত হলে rotation-এর বাইরে অন্য সদস্য অটো নির্বাচন হবে।
@@ -483,7 +477,8 @@ function buildDutyData() {
           dateStr,
           previousDuty,
           rotationMember,
-          [previousFridayDuty, previousFridayByShift[shift]]
+          [previousFridayDuty],
+          previousFridayByShift[shift]
         );
       }
 
@@ -714,13 +709,7 @@ function generateCalendar() {
     ].filter(Boolean).join(" ");
 
     row.onclick = () => selectDutySwap(item.date);
-    // শনিবার–শুক্রবার এক সপ্তাহ। বর্তমান সপ্তাহ A, পরের সপ্তাহ B, তারপর C।
-    const shiftStart = new Date(`${today}T00:00:00`);
-    shiftStart.setDate(shiftStart.getDate() - shiftStart.getDay() - 1);
-    const daysFromShiftStart = Math.round(
-      (date.getTime() - shiftStart.getTime()) / 86400000
-    );
-          const shift = getRosterShift(item.date);
+    const shift = getRosterShift(item.date);
 
     row.innerHTML = `
       <td>${item.date}</td>
@@ -731,12 +720,6 @@ function generateCalendar() {
     tbody.appendChild(row);
   });
 
-  if (todayIndex >= 0) {
-    tbody.querySelector(".today-row")?.scrollIntoView({
-      behavior: "smooth",
-      block: "center"
-    });
-  }
 }
 
 function updateSwapStatus() {
