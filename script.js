@@ -15,7 +15,7 @@ const DUTY_PAST_DAYS = 7;
 const DUTY_FUTURE_DAYS = 52;
 const DUTY_DISPLAY_DAYS = 90;
 const ROSTER_YEAR = 2026;
-const DUTY_RULE_VERSION = 8;
+const DUTY_RULE_VERSION = 9;
 
 const holidays = {
   "2026-07-04": { className: "holiday-national", label: "জাতীয় ছুটি" },
@@ -184,19 +184,13 @@ function hasValidDutyRules() {
     )) return false;
   }
 
-  const previousFridayByShift = {};
   let previousFridayDuty = null;
   for (const item of sorted) {
     const date = new Date(`${item.date}T00:00:00`);
     if (date.getDay() !== 5) continue;
 
-    const shift = getRosterShift(item.date);
-    // পরপর দুই শুক্রবারে একই ব্যক্তি কোনো শিফটেই ডিউটি পাবেন না।
+    // পরপর দুই শুক্রবারে একই ব্যক্তি ডিউটি পাবেন না।
     if (item.duty === previousFridayDuty) return false;
-    // একই শিফটে ফিরে এলে আগের সেই শিফটের ব্যক্তিও পুনরায় পাবেন না।
-    if (previousFridayByShift[shift] === item.duty) return false;
-
-    previousFridayByShift[shift] = item.duty;
     previousFridayDuty = item.duty;
   }
 
@@ -322,19 +316,25 @@ function getFridayNumber(date) {
   return Math.ceil(date.getDate() / 7);
 }
 
-function getFridayRotationIndex(date) {
-  // ১ম শুক্রবার ১ম সদস্য, ২য় শুক্রবার ২য় সদস্য,
-  // ৩য় শুক্রবার ৩য় সদস্য—তারপর একই রোটেশন।
-  const firstFriday = new Date(`${ROSTER_YEAR}-01-02T00:00:00`);
-  const fridayNumber = Math.floor(
-    (date.getTime() - firstFriday.getTime()) / (7 * 86400000)
-  );
-  return ((fridayNumber % members.length) + members.length) % members.length;
-}
+const fridayRotationsByShift = {
+  A: ["নেওয়াজ", "হাসান"],
+  C: ["হাসান", "শফিক"],
+  B: ["শফিক", "নেওয়াজ"]
+};
 
 function getFridayRotationMember(date) {
   if (!members.length) return null;
-  return members[getFridayRotationIndex(date)];
+
+  const shift = getShiftForDate(date);
+  const rotation = fridayRotationsByShift[shift] || members.slice(0, 3);
+  const firstFriday = new Date(`${ROSTER_YEAR}-01-02T00:00:00`);
+  let shiftFridayCount = 0;
+
+  for (let checkDate = new Date(firstFriday); checkDate <= date; checkDate = addDays(checkDate, 7)) {
+    if (getShiftForDate(checkDate) === shift) shiftFridayCount++;
+  }
+
+  return rotation[(shiftFridayCount - 1) % rotation.length];
 }
 
 function getFridayFallback(
@@ -345,19 +345,20 @@ function getFridayFallback(
   sameShiftPrevious = null
 ) {
   const available = getAvailableMembers(dateStr);
-  const unavailable = new Set([
-    previousDuty,
-    rotationMember,
-    ...blocked,
-    sameShiftPrevious
-  ]);
+  const previousFridayMembers = new Set(blocked);
 
-  return available.find(member => !unavailable.has(member)) ||
-    available.find(member =>
-      member !== previousDuty && member !== sameShiftPrevious
-    ) ||
-    available.find(member => member !== sameShiftPrevious) ||
-    available[0];
+  return available.find(member =>
+    member !== previousDuty &&
+    member !== rotationMember &&
+    member !== sameShiftPrevious &&
+    !previousFridayMembers.has(member)
+  ) || available.find(member =>
+    member !== previousDuty &&
+    member !== sameShiftPrevious &&
+    !previousFridayMembers.has(member)
+  ) || available.find(member =>
+    member !== sameShiftPrevious && !previousFridayMembers.has(member)
+  ) || available[0];
 }
 
 function getPreviousMonthFridayKey(date, fridayNumber) {
@@ -468,17 +469,17 @@ function buildDutyData() {
 
       if (rotationMember && available.includes(rotationMember) &&
           rotationMember !== previousDuty &&
-          rotationMember !== previousFridayByShift[shift]) {
-        // আগের একই শিফটের শুক্রবারে দায়িত্বে থাকলে নির্দিষ্ট সদস্যকে এড়িয়ে চলুন।
+          rotationMember !== previousFridayDuty) {
+        // নির্ধারিত rotation বজায় থাকবে, তবে আগের শুক্রবারের সদস্য পুনরায় নয়।
         fridayDutyMember = rotationMember;
       } else if (available.length) {
-        // সংঘাত হলে rotation-এর বাইরে অন্য সদস্য অটো নির্বাচন হবে।
+        // ছুটি, পরপর ডিউটি বা আগের শুক্রবারের সংঘাতে বিকল্প সদস্য নেওয়া হবে।
         fridayDutyMember = getFridayFallback(
           dateStr,
           previousDuty,
           rotationMember,
           [previousFridayDuty],
-          previousFridayByShift[shift]
+          null
         );
       }
 
