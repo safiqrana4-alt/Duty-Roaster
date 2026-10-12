@@ -8,7 +8,7 @@ const firebaseConfig = {
   appId: "1:142416343397:web:202d63a1fcff38e225b18c"
 };
 
-const defaultMembers = ["শফিক", "হাসান", "নেওয়াজ"];
+const defaultMembers = ["শফিক", "হাসান", "আশিক"];
 const days = ["রবিবার", "সোমবার", "মঙ্গলবার", "বুধবার", "বৃহস্পতিবার", "শুক্রবার", "শনিবার"];
 const STORAGE_KEYS = { theme: "es_theme" };
 const DUTY_PAST_DAYS = 7;
@@ -317,9 +317,9 @@ function getFridayNumber(date) {
 }
 
 const fridayRotationsByShift = {
-  A: ["নেওয়াজ", "হাসান"],
+  A: ["আশিক", "হাসান"],
   C: ["হাসান", "শফিক"],
-  B: ["শফিক", "নেওয়াজ"]
+  B: ["শফিক", "আশিক"]
 };
 
 function getFridayRotationMember(date) {
