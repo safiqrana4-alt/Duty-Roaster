@@ -8,14 +8,15 @@ const firebaseConfig = {
   appId: "1:142416343397:web:202d63a1fcff38e225b18c"
 };
 
-const defaultMembers = ["শফিক", "হাসান", "আশিক"];
+const defaultMembers = ["শফিক", "হাসান"];
+const removedMembers = new Set(["আশিক", "নেওয়াজ"]);
 const days = ["রবিবার", "সোমবার", "মঙ্গলবার", "বুধবার", "বৃহস্পতিবার", "শুক্রবার", "শনিবার"];
 const STORAGE_KEYS = { theme: "es_theme" };
 const DUTY_PAST_DAYS = 7;
 const DUTY_FUTURE_DAYS = 52;
 const DUTY_DISPLAY_DAYS = 90;
 const ROSTER_YEAR = 2026;
-const DUTY_RULE_VERSION = 9;
+const DUTY_RULE_VERSION = 10;
 
 const holidays = {
   "2026-07-04": { className: "holiday-national", label: "জাতীয় ছুটি" },
@@ -69,7 +70,9 @@ async function initFirebase() {
 function setupRealtimeListeners() {
   dbRef("members").on("value", snap => {
     const data = snap.val();
-    members = Array.isArray(data) && data.length ? data : defaultMembers.slice();
+    const currentMembers = Array.isArray(data) ? data : defaultMembers;
+    members = currentMembers.filter(member => !removedMembers.has(member));
+    if (!members.length) members = defaultMembers.slice();
     loaded.members = true;
     rebuildIfRequired();
     renderAll();
@@ -316,17 +319,11 @@ function getFridayNumber(date) {
   return Math.ceil(date.getDate() / 7);
 }
 
-const fridayRotationsByShift = {
-  A: ["আশিক", "হাসান"],
-  C: ["হাসান", "শফিক"],
-  B: ["শফিক", "আশিক"]
-};
-
 function getFridayRotationMember(date) {
   if (!members.length) return null;
 
   const shift = getShiftForDate(date);
-  const rotation = fridayRotationsByShift[shift] || members.slice(0, 3);
+  const rotation = members;
   const firstFriday = new Date(`${ROSTER_YEAR}-01-02T00:00:00`);
   let shiftFridayCount = 0;
 
